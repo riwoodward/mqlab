@@ -1,0 +1,21 @@
+# Configuration file for convenient access to connection settings for MQ lab instruments
+# For device type, select from: 'osa', 'osc', 'esa', or 'pdd', which represent optical spectrum analysers,
+# oscilloscopes, electrical spectrum analysers and pulse diagnostic devices (autocorrelators, streak cams etc.), respectively.
+#
+# Express terminating char as CR (carraige return, \r), LF (line feed - i.e. new line, \n) or both in required order (e.g. CRLF)
+
+[YokogawaAQ6376]
+device_type = osa
+ip_address = 10.46.25.201
+port = 10001
+terminating_char = LF
+gpib_address = 1
+
+[AnritsuMS2683A]
+device_type = esa
+terminating_char = LF
+gpib_address = 2
+
+[AndoAQ6317B]
+device_type = osa
+gpib_address = 3

@@ -1,0 +1,6 @@
+numpy
+scipy
+future
+matplotlib
+pyserial
+python-vxi11

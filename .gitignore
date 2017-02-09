@@ -1,0 +1,18 @@
+# Compiled python modules.
+*.pyc
+
+# Simulation data files
+*.h5
+
+# Setuptools distribution folder.
+/dist/
+
+# Python egg metadata, regenerated from source files by setuptools.
+/*.egg-info
+
+# Compiled docs
+docs/_build/
+
+# Test dumps
+tests/.cache/
+.cache/
