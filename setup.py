@@ -1,7 +1,9 @@
 """ Setup script for MQ Mid-IR Photonics Group lab control software.
 
 Usage:
-  - cd into this directory and execute: "python setup.py develop"
+    'cd' into this directory and execute:
+        "python setup.py install" [for a simple install to python site-packages folder]
+        "python setup.py develop" [for an active development environment]
 """
 
 from setuptools import setup
@@ -12,7 +14,7 @@ def readme():
         return f.read()
 
 
-setup(name='MQ Lab Control',
+setup(name='mqlab',
       version='0.1',
       description='Instrument control code for MQ Mid-IR Photonics Group lab devices.',
       long_description=readme(),
@@ -22,12 +24,12 @@ setup(name='MQ Lab Control',
       packages=[],
       # Define dependencies
       install_requires=[
-          'scipy',
+          'future',
           'numpy',
+          'scipy',
           'matplotlib',
           'pyserial',
-          'matplotlib',
           'python-vxi11',
-          'future',
+          'pyvisa',
       ],
       zip_safe=False)

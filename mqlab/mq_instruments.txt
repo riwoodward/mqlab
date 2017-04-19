@@ -1,0 +1,37 @@
+# Configuration file for convenient access to connection settings for MQ lab instruments
+# For device type, select from: 'osa', 'osc', 'esa', 'pdd', 'ps', 'pm' 'lockin' which represent optical spectrum analysers,
+# oscilloscopes, electrical spectrum analysers, pulse diagnostic devices (autocorrelators, streak cams etc.), power supplies, power meters and lock-in amps respectively.
+#
+# Express terminating char as CR (carraige return, \r), LF (line feed - i.e. new line, \n) or both in required order (e.g. CRLF)
+
+[YokogawaAQ6376]
+device_type = osa
+ip_address = 10.46.25.201
+port = 10001
+terminating_char = LF
+gpib_address = 1
+
+[AnritsuMS2683A]
+device_type = esa
+terminating_char = LF
+gpib_address = 2
+
+[AndoAQ6317B]
+device_type = osa
+gpib_address = 3
+
+[HP6653A]
+device_type = ps
+gpib_address = 4
+
+[SR830]
+device_type = lockin
+gpib_address = 5
+
+[HP54616C]
+device_type = osc
+gpib_address = 6
+
+[ThorLabsPM100A]
+device_type = pm
+serial_number = P1003109

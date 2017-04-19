@@ -1,0 +1,111 @@
+/* Stylesheet for Lab GUI */
+/* Applies a Ribbon-inspired colour scheme and design. */
+
+/* Assign styles to custom named objects (prevents unwanted automatic inheritance of styles) */
+#tabContentsBackground {
+    background-color: #f19fac;
+}
+
+
+/* Global style changes */
+
+QLineEdit, QListWidget {
+    border: 1px solid gray;
+    border-radius: 2px;
+}
+
+
+QComboBox {
+    border: 1px solid gray;
+    border-radius: 2px;
+    padding: 1px 18px 1px 3px;
+}
+
+
+QComboBox::drop-down
+{
+    border: 0px; /* This seems to replace the whole arrow of the combo box */
+}
+
+/* Define a new custom arrow icon for the combo box */
+QComboBox::down-arrow {
+    image: url(resources/down-arrow.png);
+    width: 8px;
+    height: 8px;
+}
+
+QPushButton, QToolButton {
+    background-color: transparent;
+    border-radius: 2px;
+}
+
+QPushButton:hover, QToolButton:hover {
+    background-color: #b2c1e8;
+}
+
+QPushButton:pressed, QToolButton:pressed {
+     background-color: #90a0c6;
+ }
+
+
+QComboBox {
+    background-color: white;
+}
+
+
+QTabWidget::pane {
+    border-top: 2px solid qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #A6192E, stop:1.0 #303070);
+    top: -2px;
+    border-bottom: 2px solid qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #A6192E, stop:1.0 #303070);
+}
+
+QTabWidget::tab-bar {
+    left: 30px;
+}
+
+
+QTabBar {
+    background-color: transparent;
+}
+
+QTabBar::tab {
+    padding: 5px 15px 3px 15px; /*padding: 5px 15px 3px 15px; */
+    margin-top: 10px;
+    color: #76232F;  /* Color of tab text */
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+
+
+QTabBar::tab:hover {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0 #fffaff, stop: 0.4 #fff0c0,
+        stop: 0.5 #fff0c0, stop: 1.0 #f19fac);
+    border: 1px solid #a4a063;
+}
+
+QTabBar::tab:!selected {
+    border-bottom: 2px solid transparent;
+}
+
+QTabBar::tab:selected {
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0 #fff0f0, stop: 0.3 #fff4f4,
+        stop: 0.4 #ffe7e7, stop: 1.0 #f19fac);
+    border: 1.3px solid #76232F;
+    border-bottom: solid 0px;
+}
+
+
+QGroupBox {
+    border: 1px solid gray;
+    border-radius: 5px;
+    margin-top: 2ex; /* leave space at the top for the title */
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top center; /* position at the top center */
+    padding: 0 3px;
+    color: #76232F; /* group box header colour */
+}
