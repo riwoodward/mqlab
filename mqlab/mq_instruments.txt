@@ -3,10 +3,12 @@
 # oscilloscopes, electrical spectrum analysers, pulse diagnostic devices (autocorrelators, streak cams etc.), power supplies, power meters and lock-in amps respectively.
 #
 # Express terminating char as CR (carraige return, \r), LF (line feed - i.e. new line, \n) or both in required order (e.g. CRLF)
+# Host IP Addresses for LAN boxes are: 10.204.43.240 (hearing hub) and 10.46.25.51 (engineering dept.)
 
 [YokogawaAQ6376]
 device_type = osa
-ip_address = 10.46.25.201
+# Eng. Dept: ip_address = 10.46.25.201
+ip_address = 10.204.41.224
 port = 10001
 terminating_char = LF
 gpib_address = 1
@@ -35,3 +37,11 @@ gpib_address = 6
 [ThorLabsPM100A]
 device_type = pm
 serial_number = P1003109
+
+[TektronixTDS794D]
+device_type = osc
+gpib_address = 7
+
+[Newport5600]
+device_type = ps
+gpib_address = 8

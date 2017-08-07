@@ -26,7 +26,7 @@ from threading import Thread
 import socket, webbrowser
 from configparser import ConfigParser
 from PyQt5 import QtCore, Qt
-from PyQt5.QtCore import QObject, QThread, pyqtSlot, pyqtSignal
+from PyQt5.QtCore import QObject, QThread, QSize, pyqtSlot, pyqtSignal
 from PyQt5.QtGui import QPixmap, QTextCursor, QIcon, QKeySequence, QColor, QBrush, QPalette, QImage, QTextBlockFormat
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QGroupBox, QHBoxLayout, QVBoxLayout, QRadioButton, QSpinBox, QFormLayout, QCheckBox, QComboBox, QLineEdit, QSplitter, QFileDialog, QInputDialog, QMainWindow, QPushButton, QToolButton, QSizePolicy, QTextEdit, QAction, QMessageBox, QTabWidget, QFrame, QDockWidget, QTreeWidget, QMenu, QTabBar, QListWidget, QAbstractItemView, QStyle, QGridLayout, QShortcut
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -138,6 +138,9 @@ class MainWindow(QMainWindow):
         self.masterLayout.addWidget(self.ribbon)
         self.masterLayout.addWidget(self.plotTabs)
 
+        self.masterLayout.setStretchFactor(0, 0)  # Disallow ribbon area from expanding on window resize
+        self.masterLayout.setStretchFactor(1, 20)  # Disallow ribbon area from expanding on window resize
+
         self.setCentralWidget(self.masterLayout)
 
     def createPlotsLayout(self):
@@ -196,7 +199,6 @@ class MainWindow(QMainWindow):
 
         self.plotTabs.insertTab(newIndex, self.plots[tabIndex], 'Fig %i' % self.global_plot_i)
         self.global_plot_i += 1
-
 
     def plotTabChanged(self, newIndex):
         """ If user chooses the "+" for adding a new tab, insert this and give focus correctly. """
@@ -301,8 +303,11 @@ class MainWindow(QMainWindow):
         self.grabMode.addItems(['Grab', 'Live View'])
         self.connectionType = QComboBox()
         self.connectionType.addItems(['GPIB-Ethernet', 'GPIB-USB', 'Ethernet'])
+        self.location = QComboBox()
+        self.location.addItems(['Hearing Hub', 'Engineering'])
         grabSettingsLayout.addRow('Mode:', self.grabMode)
         grabSettingsLayout.addRow('Conn.:', self.connectionType)
+        grabSettingsLayout.addRow('Lab:', self.location)
 
         logoFrameLayout.addWidget(mqLogo)
         logoFrameLayout.addWidget(grabSettings)
@@ -447,6 +452,7 @@ class MainWindow(QMainWindow):
 
         # Files List Widget
         self.filesList = QListWidget()
+        self.filesList.setMaximumHeight(110)
         self.filesList.setSelectionMode(QAbstractItemView.ExtendedSelection)
         # Enable right click menu
         self.filesList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -460,9 +466,9 @@ class MainWindow(QMainWindow):
         plotBtnAndCustomisationLayout = QVBoxLayout(self.plotBtnAndCustomisationWidget)
         plottingBtnsLayout = QHBoxLayout()
 
-        plotOpticalSpectrumBtn = self.createRibbonBtn(parent=self.plottingTab, onPushMethod=self.plot_optical_spectrum, text='Plot\n&Optical Spectrum', icon_filepath=self.resources_folder+'icon_optical_spectrum.png', icon_size=30, icon_pos='bottom', btn_type='toolbutton')
-        plotTemporalTraceBtn = self.createRibbonBtn(parent=self.plottingTab, onPushMethod=lambda: self.plot_temporal_trace(source='osc'), text='Plot\n&Temporal Trace', icon_filepath=self.resources_folder+'icon_temporal_trace.png', icon_size=30, icon_pos='bottom', btn_type='toolbutton')
-        plotElectricalSpectrumBtn = self.createRibbonBtn(parent=self.plottingTab, onPushMethod=self.plot_electrical_spectrum, text='Plot\n&Electrical Spectrum', icon_filepath=self.resources_folder+'icon_electrical_spectrum.png', icon_size=30, icon_pos='bottom', btn_type='toolbutton')
+        plotOpticalSpectrumBtn = self.createRibbonBtn(parent=self.plottingTab, onPushMethod=self.plot_optical_spectrum, text='Plot\n&Optical Spectrum', icon_filepath=self.resources_folder + 'icon_optical_spectrum.png', icon_size=30, icon_pos='bottom', btn_type='toolbutton')
+        plotTemporalTraceBtn = self.createRibbonBtn(parent=self.plottingTab, onPushMethod=lambda: self.plot_temporal_trace(source='osc'), text='Plot\n&Temporal Trace', icon_filepath=self.resources_folder + 'icon_temporal_trace.png', icon_size=30, icon_pos='bottom', btn_type='toolbutton')
+        plotElectricalSpectrumBtn = self.createRibbonBtn(parent=self.plottingTab, onPushMethod=self.plot_electrical_spectrum, text='Plot\n&Electrical Spectrum', icon_filepath=self.resources_folder + 'icon_electrical_spectrum.png', icon_size=30, icon_pos='bottom', btn_type='toolbutton')
 
         plottingBtnsLayout.addWidget(plotOpticalSpectrumBtn)
         plottingBtnsLayout.addWidget(plotTemporalTraceBtn)
@@ -475,7 +481,7 @@ class MainWindow(QMainWindow):
 
         self.rdbLog = QRadioButton('Log', self.customBtns)
         self.rdbLog.setChecked(True)
-        self.rdbLin  = QRadioButton('Lin', self.customBtns)
+        self.rdbLin = QRadioButton('Lin', self.customBtns)
         loglin = QHBoxLayout()
         loglin.addWidget(self.rdbLog)
         loglin.addWidget(self.rdbLin)
@@ -617,6 +623,7 @@ class MainWindow(QMainWindow):
         id_dict = {'osa':self.osaCmb.currentText(), 'osc':self.oscCmb.currentText(), 'esa':self.esaCmb.currentText(), 'pdd':self.pddCmb.currentText()}
         kwargs['mq_id'] = id_dict[device_type]
         kwargs['interface'] = self.connectionType.currentText()
+        kwargs['gpib_location'] = self.location.currentText()
 
         interface = self.connectionType.currentText()
 
@@ -636,8 +643,8 @@ class MainWindow(QMainWindow):
             self.plots[self.tab_idx].figure.canvas.draw()
 
         self.global_i = 0
-        self.initialise_colors() # Reset colour cycle
-        self.get_span_coords(0,0)
+        self.initialise_colors()  # Reset colour cycle
+        self.get_span_coords(0, 0)
 
         # Disable fitting controls as not data to fit to
         self.fittingBox.setEnabled(False)
@@ -719,6 +726,10 @@ class MainWindow(QMainWindow):
         kwargs = self.data_grab_preparation('osc')
         if 'HP54616C' in kwargs['mq_id']:
             osc = mq_osc.HP54616C(**kwargs)
+        elif 'TektronixTDS794D' in kwargs['mq_id']:
+            osc = mq_osc.TektronixTDS794D(**kwargs)
+        else:
+            raise ValueError('Oscilloscope not in database. Check code / mqinstruments folder.')
 
         # Grab and plot data
         self.clear_plot()

@@ -78,6 +78,9 @@ def read_data(file_path, data_source):
         # For Ando AQ6317B when saving files to a floppy disk
         if first_line[-5] == 'T':
             data = np.genfromtxt(file_path, delimiter=',', skip_header=3, skip_footer=18)
+        # For Thorlabs FTIR
+        elif 'Thorlabs FTS' in first_line:
+            data = np.genfromtxt(file_path, delimiter=';', skip_header=82, skip_footer=1)
         # For all other experimental data (assuming using mqlab grab facility)
         else:
             data = np.loadtxt(file_path)
@@ -162,7 +165,7 @@ def eng_prefix(x, source='not an osa'):
         exp = np.floor(np.log10(abs(x[int(0.6 * np.size(x))])))  # if given an array, use near the half point
     else:
         exp = np.floor(np.log10(abs(x)))  # Get exponent for the single value
-    engr_exp = exp - (exp % 3)  # Round exponent down to nearest multiple of 3
+    engr_exp = int(exp - (exp % 3))  # Round exponent down to nearest multiple of 3
     mantissa = x / (10**engr_exp)
     # Manuallly override so VIS/NIR wavelengths are displayed in nm
     if source == 'osa':

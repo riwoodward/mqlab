@@ -38,3 +38,31 @@ class HP54616C(Oscilloscope):
         ys = ((data - yoffset) * yincr) + yzero
         tms = xoffset + (np.arange(1, numdatapoints + 1, 1) * xincr)
         return tms, ys
+
+
+class TektronixTDS794D(Oscilloscope):
+
+    def grab(self, channel='1'):
+        """ Return times [s] and amplitudes [V] data currently displayed on device. """
+        if channel not in ('1', '2', '3', '4'):
+            raise ValueError("Trace must be '1', '2', '3', or '4'")
+
+        # Select chosen waveform channel, 16-bit (2 byte) per data point, and binary data format (signed integer, MSB sent first)
+        self.send('DATa:SOUrce CH{};:DATa:WIDth 2;:DATA:ENCdg RIBinary'.format(channel))
+
+        # Get preamble and data in one command (equivalent to self.query('CURVE?'), followed by self.query('WFMPRe?', dtype=str))
+        preamble_and_data = self.query('WAVFrm?')
+        preamble, data = preamble_and_data.split(b';:CURV ')
+
+        # Decode preamble (according to Tektronix programming manual - we use their variable names here)
+        # When using WAVFrm command, the preamble includes labels of each value, so strip these off to obtain just the values
+        preamble = preamble.decode()  # Byte -> string conversion
+        preamble_items = preamble.split(':WFMP:')[-1].split(';')
+        BYT_Nr, BIT_Nr, ENCdg, BN_Fmt, BYT_Or, WFID, NR_Pt, PT_FMT, XUNit, XINcr, XZEro, PT_Off, Y_UNit, YMUlt, YOFf, YZEro = [item.split(' ')[-1] for item in preamble_items]
+        tms = np.arange(int(NR_Pt)) * float(XINcr) + float(XZEro)
+
+        # Convert data in arb units to volts
+        intensities_arb_units = self._decode_binary_block(data, dtype='>i2')
+        ys = float(YMUlt) * (intensities_arb_units.astype(np.float) - float(YOFf)) + float(YZEro)
+
+        return tms, ys

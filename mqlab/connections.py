@@ -1,9 +1,9 @@
 """ Communication protocol definitions, establishing common framework for instrument control.
 
 Requirements:
-    for RS232: serial (pySerial : available from: https://pypi.python.org/pypi/pyserial)
+    for RS232: pyserial
     for Ethernet: socket (installed by default)
-    for GPIB: ??
+    for GPIB: python-vxi11
 """
 from __future__ import division, print_function, absolute_import, unicode_literals
 from builtins import ascii, bytes, chr, dict, filter, hex, input, int, map, next, oct, open, pow, range, round, str, super, zip
@@ -25,7 +25,7 @@ mq_instruments_config_filepath = mq_instruments_config_filepath.replace('\\', '/
 class Instrument(object):
     """ Base class for lab instrument, defining connection protocols. """
 
-    def __init__(self, interface, mq_id=None, ip_address=None, port=None, terminating_char='', gpib_address=None, com_port=None, baud_rate=None, serial_number=None, timeout=2):
+    def __init__(self, interface, mq_id=None, ip_address=None, port=None, terminating_char='', gpib_address=None, gpib_location='hearing_hub', com_port=None, baud_rate=None, serial_number=None, timeout=2):
         """ Instantiate instrument object.
 
         If an mq_id is passed, the connection configuration will be read from the config file.
@@ -38,16 +38,15 @@ class Instrument(object):
             Or, for a manual ethernet config:
                 ip_address (str): ip address of device
                 port (int): port to use for connection
-                terminating_char (str): character that signals an end-of-message for the device
             Or, for a manual GPIB config:
                 gpib_address (int): address of device
-                terminating_char (str): character that signals an end-of-message for the device
+                gpib_location (str): 'hearing_hub' or 'engineering', so the GPIB host IP can be automatically obtained
             Or, for a manual RS232 serial config:
                 com_port (int) : serial port number of this computer's port, NOT the instrument
                 baud_rate (int): baud rate required for the device
-                terminating_char (str): character that signals an end-of-message for the device
             Or, for a manual USB config:
                 serial_number : device serial number used to identify it from the list of connected USB devices
+            terminating_char (str): character that signals an end-of-message for the device
             timeout (float, optional): wait time [s] until no reply to a command is considered a failure
 
         """
@@ -75,7 +74,14 @@ class Instrument(object):
         elif self._interface == 'gpib-ethernet':
             if gpib_address is None:
                 raise ValueError('For a GPIB-over-ethernet device connection, gpib_address must be specified. Ensure correct device type was specified and all parameters are given.')
-            self.connection = GPIBOverEthernetConnection(gpib_address=gpib_address)
+            # Get GPIB-LAN gateway box IP address (different box for each lab)
+            if 'hub' in gpib_location.lower():
+                # Hearing Hub
+                host_ip_address = '10.204.43.240'
+            else:
+                # Engineering Dept.
+                host_ip_address = '10.46.25.51'
+            self.connection = GPIBOverEthernetConnection(gpib_address=gpib_address, host_ip_address=host_ip_address)
 
         elif self._interface == 'gpib-usb':
             raise ValueError('Not implemented yet.')
@@ -203,13 +209,13 @@ class EthernetConnection(object):
 class GPIBOverEthernetConnection(object):
     """ Connection protocols for GPIB devices though a LAN/GPIB gateway. """
 
-    def __init__(self, gpib_address):
+    def __init__(self, gpib_address, host_ip_address):
         """ Constructor for an ethernet port connected instrument.
 
         Args:
             gpib_address (int): GPIB address set in instrument
+            host_ip_address (str): IP of GPIB-LAN gateway, e.g. '10.204.43.240' for hearing hub network
         """
-        host_ip_address = '10.46.25.51'  # IP address of HP E2050A LAN/GPIB Gateway (fixed IP set in unit)
         self.vxi11 = VXI11Instrument(host=host_ip_address, name="gpib0,%i" % gpib_address)
 
     def get_status_byte(self):
