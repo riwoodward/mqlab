@@ -35,3 +35,31 @@ class HP6653A(PowerSupply):
     def set_output_on(self):
         """ Enable output. """
         self.send('OUTP ON')
+
+
+class Newport5600(PowerSupply):
+    """ Interfacing code for Newport 5600 diode driver. """
+
+    def set_current(self, current):
+        """ Set the current limit to the user specified current (A) maintaining all other settings. """
+        self.send('LASer:LDI {:.3f}'.format(current))
+
+    def set_voltage(self, voltage):
+        """ Set the voltage limit to the user specified voltage (V) maintaining all other settings. """
+        self.send('LASer:LDV {:.3f}'.format(voltage))
+
+    def get_current(self):
+        """ Return current [A]. """
+        return self.query('LASer:LDI?', dtype=float)
+
+    def get_voltage(self):
+        """ Return voltage [V]. """
+        return self.query('LASer:LDV?', dtype=float)
+
+    def set_output_off(self):
+        """ Disable output. """
+        self.send('LASer:OUTput 0')
+
+    def set_output_on(self):
+        """ Enable output. """
+        self.send('LASer:OUTput 1')

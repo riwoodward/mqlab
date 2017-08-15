@@ -345,10 +345,15 @@ class MainWindow(QMainWindow):
         channelChoiceLayout = QHBoxLayout(channelChoice)
         self.oscCh1 = QRadioButton('1')
         self.oscCh2 = QRadioButton('2')
+        self.oscCh3 = QRadioButton('3')
+        self.oscCh4 = QRadioButton('4')
         self.oscCh1.setChecked(True)
-        channelChoiceLayout.addWidget(QLabel('Channel:'))
+        channelChoiceLayout.addWidget(QLabel('Ch:'))
         channelChoiceLayout.addWidget(self.oscCh1)
         channelChoiceLayout.addWidget(self.oscCh2)
+        channelChoiceLayout.addWidget(self.oscCh3)
+        channelChoiceLayout.addWidget(self.oscCh4)
+
 
         grabOscBtn = self.createRibbonBtn(parent=osaFrame, onPushMethod=lambda: self.onPushGrabBtn(target=self.grab_osc), text='   G&rab', icon_filepath=self.resources_folder + 'icon_temporal_trace.png', icon_size=30, btn_type='pushbutton')
 
@@ -737,6 +742,10 @@ class MainWindow(QMainWindow):
             osc_channel = '1'
         elif self.oscCh2.isChecked():
             osc_channel = '2'
+        elif self.oscCh3.isChecked():
+            osc_channel = '3'
+        elif self.oscCh4.isChecked():
+            osc_channel = '4'
         data = self.instrument_data_grab(osc, channel=osc_channel)
 
         if data is None:

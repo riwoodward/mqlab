@@ -4,6 +4,7 @@ from builtins import ascii, bytes, chr, dict, filter, hex, input, int, map, next
 
 import time
 import operator
+import struct
 import numpy as np
 
 import mqlab.utils as ut
@@ -26,7 +27,14 @@ class ThorlabsK10CR1(object):
     """
     # Device takes a short while to prepare data from reading once command received
     # 0.02 s seems to work well
-    COMMS_DELAY = 0.02
+    # COMMS_DELAY = 0.02
+    COMMS_DELAY = 0.05
+
+
+    # Encoder information (mapping counts to real-world values), angular distance units are in degrees
+    POS_COUNT_FACTOR = 136533
+    VEL_COUNT_FACTOR = 7329109
+    ACC_COUNT_FACTOR = 1502
 
     def __init__(self, serial='55000359'):
         """ Initialise connection. """
@@ -36,7 +44,7 @@ class ThorlabsK10CR1(object):
 
         device_description = device_info['description'].decode()
         if 'K10CR1' in device_description:
-            print('Successful connection established to {}'.format(device_description))
+            print('Successful connection established to {} (serial: {})'.format(device_description, serial))
         else:
             raise ValueError('Connection failed / incorrect device serial specified. Description retuned is: {}'.format(device_description))
 
@@ -68,12 +76,16 @@ class ThorlabsK10CR1(object):
         # self.send('\x26\x04\x06\x00\xa1\x01\x01\x00\x0a\x00\x1e\x00')
         # At present, this seems to prevent motion of the stage!
 
+        # MQ lab init
+        # self.set_max_speed()  # Sometimes doesn't work
+        self.set_fast_speed()
+
     def jog_forwards(self):
-        """ Jog rotator forwards. """
+        """ Jog rotator forwards (with default jog params saved to device). """
         self.send('\x6A\x04\x00\x01\x21\x01')
 
     def jog_backwards(self):
-        """ Jog rotator backwards. """
+        """ Jog rotator backwards (with default jog params saved to device). """
         self.send('\x6A\x04\x00\x02\x21\x01')
 
     def home(self):
@@ -83,10 +95,10 @@ class ThorlabsK10CR1(object):
     def close_connection(self):
         self.connection.close()
 
-    def get_position(self):
+    @property
+    def position(self):
         """ Return current position [deg]. """
         response = self.query('\x11\x04\x01\x00\x21\x01')
-        print(response)
 
         # Get channel number
         chan_ident = np.fromstring(response[6:8], dtype='<u2')[0]  # Convert hex to 2-byte little endian unsigned int
@@ -94,12 +106,19 @@ class ThorlabsK10CR1(object):
 
         # Data returned is in position encoder counts, so we convert to degrees based on APT documentation (p20, Thorlabs issue 20 of APT docs)
         counts = np.fromstring(response[8:12], dtype='<i4')[0]  # Convert hex to 4-byte little endian signed int
-        return counts / 136533
+        return counts / self.POS_COUNT_FACTOR
 
     def get_status(self):
-        """ Return status bytes. """
+        """ Return status bytes (PROCESSING INCOMPLETE). """
         response = self.query('\x29\x04\x01\x00\x21\x01')
-        print(response)
+
+        # while len(response) < 1:
+            # print('Status failed. retrying..')
+            # time.sleep(1)
+            # response = self.query('\x29\x04\x01\x00\x21\x01')
+
+            # in_queue2 = self.connection.getQueueStatus()
+            # print(f'Status requested failed (null value returned). Check device and retry. DEBUG: query status = {in_queue} before, {in_queue2} retry.')
 
         # Get channel number
         chan_ident = np.fromstring(response[6:8], dtype='<u2')[0]  # Convert hex to 2-byte little endian unsigned int
@@ -107,23 +126,37 @@ class ThorlabsK10CR1(object):
 
         # Decode status bytes using bit maskings (see APT documentation, and note that we reverse bit order here to use other endian convention to manual, p98)
         status = response[8:12]
+        return np.fromstring(status, dtype='<u4')[0]
 
-        masked_bits = bytes(map(operator.and_, status, b'\x00\x04\x00\x00'))
-        if np.fromstring(masked_bits, 'u4')[0] != 0:
-            print('Homed')
-            homed = True
+    def set_fast_speed(self):
+        """ Set max vel and acc to 20 units, for move operations (not jog). """
+        self.send(b'\x13\x04\x0e\x00\xa1\x01\x01\x00\x00\x00\x00\x00\x58\x75\x00\x00\xab\xaa\xbc\x08')
+
+    def set_max_speed(self):
+        """ Set max vel and max acc. to 25 degrees per second and second^2, for move operations (not jog). """
+        self.send(b'\x13\x04\x0e\x00\xa1\x01\x01\x00\x00\x00\x00\x00\xae\x92\x00\x00\x55\xd5\xeb\x0a')
+
+    @property
+    def is_moving(self):
+        """ Return True is stage moving. False otherwise. """
+        status = self.get_status()
+        if status & 0x00000010:
+            moving = True
         else:
-            print('Not homed')
-            homed = False
+            moving = False
+        return moving
 
-        masked_bits = bytes(map(operator.and_, status, b'\x40\x00\x00\x00'))
-        if np.fromstring(masked_bits, 'u4')[0] != 0:
-            print('jogging forw')
-        else:
-            print('not jogging forw')
+    def move_to(self, position, wait_until_complete=True):
+        """ Rotate stage to position [degrees]. """
+        command = b'\x53\x04\x06\x00\xa1\x01\x01\x00'  # Command includes 6-digit header, and 2-digit chan identifier (01 default)
+        counts = position * self.POS_COUNT_FACTOR
+        command += struct.pack('<i', counts)  # Add on the absolute distance (as long type)
+        self.send(command)
 
-        return status
-
+        if wait_until_complete:
+            time.sleep(0.4)
+            while self.is_moving:
+                time.sleep(0.4)
 
     ############################################
     # DEFINE BASIC SEND/RECEIVE/QUERY COMMANDS #
@@ -131,8 +164,9 @@ class ThorlabsK10CR1(object):
     # If we start using more FTD2xx interfaces, this could be moved to mqlab/connections.py
     def send(self, command):
         """ Send command (entereted as hex string, e.g. '\x6A\x04\x00\x02\x21\x01') as bytes object to device. """
-        command_bytes = command.encode()
-        self.connection.write(command_bytes)
+        if type(command) is not bytes:
+            command = command.encode()
+        self.connection.write(command)
 
     def receive(self, dtype=None):
         """ Read data from device and return as user-chosen datatype (None = bytes, or enter str, int or float). """
