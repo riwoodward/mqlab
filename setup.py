@@ -31,5 +31,7 @@ setup(name='mqlab',
           'pyserial',
           'python-vxi11',
           'pyvisa',
+          'ftd2xx',
+          'zaber.serial',
       ],
       zip_safe=False)

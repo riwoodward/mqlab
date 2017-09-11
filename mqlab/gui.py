@@ -7,7 +7,10 @@ import mqlab.optical_spectrum_analysers as mq_osa
 import mqlab.oscilloscopes as mq_osc
 import mqlab.electrical_spectrum_analysers as mq_esa
 import mqlab.monochromators as mq_monochromator
+import mqlab.optomechanics as mq_optomechanics
 import mqlab.lock_in_amplifiers as mq_lockin
+import mqlab.autocorrelators as mq_ac
+
 import mqlab.utils as ut
 from mqlab.connections import mq_instruments_config_filepath
 # Force QStrings to be handled as strings (only required for Py2; automatic in Py3)
@@ -28,7 +31,7 @@ from configparser import ConfigParser
 from PyQt5 import QtCore, Qt
 from PyQt5.QtCore import QObject, QThread, QSize, pyqtSlot, pyqtSignal
 from PyQt5.QtGui import QPixmap, QTextCursor, QIcon, QKeySequence, QColor, QBrush, QPalette, QImage, QTextBlockFormat
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QGroupBox, QHBoxLayout, QVBoxLayout, QRadioButton, QSpinBox, QFormLayout, QCheckBox, QComboBox, QLineEdit, QSplitter, QFileDialog, QInputDialog, QMainWindow, QPushButton, QToolButton, QSizePolicy, QTextEdit, QAction, QMessageBox, QTabWidget, QFrame, QDockWidget, QTreeWidget, QMenu, QTabBar, QListWidget, QAbstractItemView, QStyle, QGridLayout, QShortcut
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QGroupBox, QHBoxLayout, QVBoxLayout, QRadioButton, QSpinBox, QDoubleSpinBox, QFormLayout, QCheckBox, QComboBox, QLineEdit, QSplitter, QFileDialog, QInputDialog, QMainWindow, QPushButton, QToolButton, QSizePolicy, QTextEdit, QAction, QMessageBox, QTabWidget, QFrame, QDockWidget, QTreeWidget, QMenu, QTabBar, QListWidget, QAbstractItemView, QStyle, QGridLayout, QShortcut
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 # Import Vxi11 Exception for helpful error catching (if user has grabbing library installed)
@@ -114,7 +117,7 @@ class MainWindow(QMainWindow):
             elif device_type == 'osc':
                 self.OSCs.append(device_id)
             elif device_type == 'esa':
-                  self.ESAs.append(device_id)
+                self.ESAs.append(device_id)
             elif device_type == 'pdd':
                 self.PDDs.append(device_id)
 
@@ -236,12 +239,16 @@ class MainWindow(QMainWindow):
         self.plottingTab = QWidget(self.ribbon)
         self.advancedTab = QWidget(self.ribbon)
         self.spectrometerTab = QWidget(self.ribbon)
+        self.autocorrelatorTab = QWidget(self.ribbon)
+
 
         # Assign custom names to these objects, so the stylesheet can uniquely set their background (without forced inheritance affecting all children)
         self.grabTab.setObjectName('tabContentsBackground')
         self.plottingTab.setObjectName('tabContentsBackground')
         self.advancedTab.setObjectName('tabContentsBackground')
         self.spectrometerTab.setObjectName('tabContentsBackground')
+        self.autocorrelatorTab.setObjectName('tabContentsBackground')
+
 
 
         # Create interface for each tab
@@ -249,11 +256,13 @@ class MainWindow(QMainWindow):
         self.plottingTabUI()
         self.advancedTabUI()
         self.spectrometerTabUI()
+        self.autocorrelatorTabUI()
 
         self.ribbon.addTab(self.grabTab, ' Data Grab ')
         self.ribbon.addTab(self.plottingTab, ' Plotting ')
         self.ribbon.addTab(self.advancedTab, ' Advanced ')
-        self.ribbon.addTab(self.spectrometerTab, ' Spectrometer ')
+        self.ribbon.addTab(self.spectrometerTab, ' MQ Spectrometer ')
+        self.ribbon.addTab(self.autocorrelatorTab, ' MQ Autocorrelator ')
 
         # Apply Style Sheet
         stylesheet_filepath = self.resources_folder + 'lab_gui_stylesheet.qss'
@@ -393,11 +402,6 @@ class MainWindow(QMainWindow):
         self.pddSettingsStreakCam.hide()
 
         self.pddSettingsAutocorrelator = QWidget(self.grabTab)
-        pddSettingsAutocorrelatorLayout = QHBoxLayout(self.pddSettingsAutocorrelator)
-        self.acComPort = QLineEdit(pddFrame)
-        self.acComPort.setText(ut.available_serial_ports()[0])
-        pddSettingsAutocorrelatorLayout.addWidget(QLabel('COM Port:'))
-        pddSettingsAutocorrelatorLayout.addWidget(self.acComPort)
 
         grabPddBtn = self.createRibbonBtn(parent=pddFrame, onPushMethod=lambda: self.onPushGrabBtn(target=self.grab_pdd), text='   Gra&b', icon_filepath=self.resources_folder+'icon_pulse_diagnostic.png', icon_size=30, btn_type='pushbutton')
 
@@ -429,13 +433,8 @@ class MainWindow(QMainWindow):
             self.esaSettings.hide()
 
     def onPddCmbChanged(self):
-        """ Show appropriate settings depending on user's choice of SC or AC device. """
-        if 'Streak' in str(self.pddCmb.currentText()):
-            self.pddSettingsAutocorrelator.hide()
-            self.pddSettingsStreakCam.show()
-        else:
-            self.pddSettingsStreakCam.hide()
-            self.pddSettingsAutocorrelator.show()
+        """ Show appropriate settings depending on user's choice of pulse diagnostic device. """
+        pass
 
     def plottingTabUI(self):
         """ Create widgets and layout for plotting tab. """
@@ -564,7 +563,7 @@ class MainWindow(QMainWindow):
         # There's a strange occurence where getOpenFileNames sometimes returns the extensions, and other times doesn't (perhaps Qt4/5 issue?). Catch this:
         if ('Data files' in file_paths[-1]) or ('All files' in file_paths[-1]):
             file_paths = file_paths[0]
-        if file_paths:  # If user presses ok (if cancel, empty string returned)
+        if type(file_paths) is list:  # If user presses ok (if cancel, empty string / tuple returned)
             for file_path in file_paths:
                 self.filesList.addItem(file_path)
 
@@ -625,7 +624,7 @@ class MainWindow(QMainWindow):
         # Save relevant arguments into dictionary
         kwargs = dict()
 
-        id_dict = {'osa':self.osaCmb.currentText(), 'osc':self.oscCmb.currentText(), 'esa':self.esaCmb.currentText(), 'pdd':self.pddCmb.currentText()}
+        id_dict = {'osa': self.osaCmb.currentText(), 'osc': self.oscCmb.currentText(), 'esa': self.esaCmb.currentText(), 'pdd': self.pddCmb.currentText()}
         kwargs['mq_id'] = id_dict[device_type]
         kwargs['interface'] = self.connectionType.currentText()
         kwargs['gpib_location'] = self.location.currentText()
@@ -641,7 +640,7 @@ class MainWindow(QMainWindow):
 
     def clear_plot(self, skip_update_canvas=True):
         """ Refresh button: reset matplotlib figure axes. """
-        self.save_file_name = '' # Blank canvas title
+        self.save_file_name = ''  # Blank canvas title
         self.plots[self.tab_idx].ax.clear()
 
         if not skip_update_canvas:
@@ -789,11 +788,30 @@ class MainWindow(QMainWindow):
 
     def grab_pdd(self):
         """ Function / thread for grabbing and displaying PulseDiagnosticDevice trace data. """
-        pass
+        # Initialise device for grabbing (at present, we only have APE as a pdd, so hard-core it's configuration (since it's a bit odd and uses TCP/IP over USB)
+        pdd = mq_ac.APEPulseCheck()
+
+        # Grab and plot data
+        self.clear_plot()
+
+        data = self.instrument_data_grab(pdd)
+        if data is None:
+            return  # Break out of function on error
+        self.plots[self.tab_idx].grabbed_data = np.column_stack(data)
+
+        self.setStatusBar('Pulse Diagnostic Device Data Grab Successful', timestamp=True)
+        self.plot_temporal_trace(source='pdd')
+
+        # If live view enabled, repeatedly grab until live_view is disabled.
+        # We want the order to be: update plot first and grab 2nd, since grab operation is slower.
+        while self.live_view_active:
+            self.clear_plot(skip_update_canvas=True)
+            self.plot_electrical_spectrum()
+            self.plots[self.tab_idx].grabbed_data = np.column_stack(pdd.grab())
 
     def plot_optical_spectrum(self):
         """ Plots optical spectrum, either from file or the recently grabbed data. """
-        self.data_source = 'osa' # Set data source variable so the GUI knows what type of data it's dealing with
+        self.data_source = 'osa'  # Set data source variable so the GUI knows what type of data it's dealing with
 
         x_short = [] # Set up arrays to store max and min axis ranges, so all data can be properly displayed by plot formatting after the loop
         x_long = []
@@ -830,7 +848,6 @@ class MainWindow(QMainWindow):
         if not 'Data Grab' in file_path:
             leg = self.plots[self.tab_idx].ax.legend(loc='best', prop={'size':10}, framealpha=0.5)
         self.update_canvas()
-
 
     def plot_temporal_trace(self, source='osc'):
         """ Plots temporal traces (inc. autocorrelations, streak camera and oscilloscope traces), either from file or the recently grabbed data. """
@@ -885,14 +902,17 @@ class MainWindow(QMainWindow):
                 self.plots[self.tab_idx].ax.plot(ut.eng_prefix(data[:, 0])[0], data[:, 1], style, color=color, mew=1, label=data_label)
 
         # Plot formatting
-        self.plots[self.tab_idx].ax.set_xlabel('Time (' + str(ut.eng_prefix(data[:, 0])[1]) + 's)')
+        if source == 'osc':
+            self.plots[self.tab_idx].ax.set_xlabel('Time (' + str(ut.eng_prefix(data[:, 0])[1]) + 's)')
+        elif source == 'pdd':
+            self.plots[self.tab_idx].ax.set_xlabel('Delay (' + str(ut.eng_prefix(data[:, 0])[1]) + 's)')
+
         self.plots[self.tab_idx].ax.set_xlim([min(ut.eng_prefix(data[:, 0])[0]), max(ut.eng_prefix(data[:, 0])[0])])
 
         self.peak_threshold = (data[:, 1].max() - data[:, 1].min()) / 2 + data[:, 1].min()  # Set a threshold for pulse train interpreetation
-        if not 'Data Grab' in file_path:
+        if 'Data Grab' not in file_path:
             leg = self.plots[self.tab_idx].ax.legend(loc='best', prop={'size':10}, framealpha=0.5)
         self.update_canvas()
-
 
     def plot_electrical_spectrum(self):
         """ Plots electrical specta, either from file or the recently grabbed data. """
@@ -987,32 +1007,32 @@ class MainWindow(QMainWindow):
             save_file_name = savefile_path.replace('\\', '/') # Default paths to linux style (works on Windows too, but not vice versa)
             display_filepath = save_file_name.split('/')[-2] + '/' + save_file_name.split('/')[-1]
 
-            savefile_path_img = savefile_path[:-4].replace('.',',') + '.dat' # Strip off dots from file name so it allows saving an image
-            self.plots[self.tab_idx].ax.set_title(display_filepath )
+            savefile_path_img = savefile_path[:-4].replace('.', ',') + '.dat'  # Strip off dots from file name so it allows saving an image
+            self.plots[self.tab_idx].ax.set_title(display_filepath)
             self.update_canvas(self, save_png_path=savefile_path_img)
 
     def preprocess_data_for_fitting(self, file_path):
         """ Get data and preprocess by taking into account custom span selected. """
         color = next(self.colors)
         data_full, data_label = self.preprocess_data(file_path)
-        data_full[:,0], unit_prefix = ut.eng_prefix(data_full[:, 0], self.data_source)  # Get data in SI units and save prefix to a variable
-        units = unit_prefix + self.units[self.data_source] # returns the dimension: m, s or Hz
+        data_full[:, 0], unit_prefix = ut.eng_prefix(data_full[:, 0], self.data_source)  # Get data in SI units and save prefix to a variable
+        units = unit_prefix + self.units[self.data_source]  # returns the dimension: m, s or Hz
 
         # If not a custom fitting, then use all the data
         if ((self.x_max == 0) and (self.x_min == 0)):
-            _x_min = data_full[:,0][0]
-            _x_max = data_full[:,0][-1]
+            _x_min = data_full[:, 0][0]
+            _x_max = data_full[:, 0][-1]
         else:
             # Get xmin and max from the span selector
             _x_min = self.x_min
             _x_max = self.x_max
-        lower_idx = np.where(data_full[:,0] <= _x_min)
-        upper_idx = np.where(data_full[:,0] >= _x_max)
-        data = data_full[lower_idx[0][-1]:upper_idx[0][0],:].copy()
+        lower_idx = np.where(data_full[:, 0] <= _x_min)
+        upper_idx = np.where(data_full[:, 0] >= _x_max)
+        data = data_full[lower_idx[0][-1]:upper_idx[0][0], :].copy()
 
         # If a custom fitting enabled, then highlight the chosen data
         if not ((self.x_max == 0) and (self.x_min == 0)):
-            self.plots[self.tab_idx].ax.plot(data[:,0],data[:,1], 'o', color=color, ms=4, mec='None')
+            self.plots[self.tab_idx].ax.plot(data[:, 0], data[:, 1], 'o', color=color, ms=4, mec='None')
             self.update_canvas()
 
         return data, units, color
@@ -1028,15 +1048,19 @@ class MainWindow(QMainWindow):
 
             x_fit, y_fit, coefs, pcov = ut.fitted(data[:, 0], data[:, 1], fit_type)
             fwhm_interpolated = ut.width_of_dataset(x=x_fit, y=y_fit, threshold=0.5, scale=self.plot_scale_log_or_lin(), interpolate=True)
-            if '(AC)' in fit_type: # If an autocorrelation trace, show deconvolved width
+
+            # If an autocorrelation trace, show deconvolved width
+            if '(AC)' in fit_type:
                 if 'sech2' in fit_type: decon_factor = 0.647
                 elif 'gaussian' in fit_type: decon_factor = 0.707
                 decon_fwhm = fwhm_interpolated * decon_factor
                 annotation = '%s FWHM:\n%0.3f %s (AC) -> %0.3f %s (Deconvolved)' % (fit_type, fwhm_interpolated, units, decon_fwhm, units)
             else:
                 annotation = '%s FWHM:\n%0.3f %s' % (fit_type, fwhm_interpolated, units)
+
             self.setStatusBar('%s Fit: coeffs = %s.' % (fit_type, coefs))
-            self.plots[self.tab_idx].ax.plot(ut.eng_prefix(x_fit, self.data_source)[0], y_fit, '-', color=color, lw=3)
+            self.plots[self.tab_idx].ax.plot(x_fit, y_fit, '-', color=color, lw=3)
+
             self.annotate_canvas(annotation, color)
             self.update_canvas()
 
@@ -1339,7 +1363,8 @@ class MainWindow(QMainWindow):
 
             self.lockin = mq_lockin.SR830(sensitivity_min_idx=int(self.sensitivityMin.currentText()), **kwargs)
             ident = self.lockin.get_idn()
-            if 'SR830' not in ident: raise Exception('GPIB connection failed.')
+            if 'SR830' not in ident:
+                raise Exception('GPIB connection failed.')
             self.setStatusBar('Successfully connected to {}.'.format(self.detectorCmb.currentText()))
             self.update_interface_disabled_options()
         except Exception as e:
@@ -1403,7 +1428,6 @@ class MainWindow(QMainWindow):
         self.update_interface_disabled_options(status='ready')
         del self.monitor_thread  # Kill thread once it finishes
 
-
     def onPushSpectrometerStart(self):
         """ Start a spectrometer measurement. """
         self.lockin.sensitivity_min_idx = int(self.sensitivityMin.currentText())  # Update the min sensitivity in case user changed it after initialising connection
@@ -1463,7 +1487,7 @@ class MainWindow(QMainWindow):
             self.intensities_dB = np.clip(10 * np.log10(abs(self.intensities)), -100.0, 100.0)  # Catch infs
 
             # Save to class
-            self.plots[self.tab_idx].grabbed_data = np.column_stack([self.wls*1e-9, self.intensities_dB])
+            self.plots[self.tab_idx].grabbed_data = np.column_stack([self.wls * 1e-9, self.intensities_dB])
 
             # Plot data
             self.plots[self.tab_idx].ax.cla()
@@ -1506,20 +1530,324 @@ class MainWindow(QMainWindow):
             self.setStatusBar('Data saved to %s' % savefile_path)
 
             # Add the recently assigned file name to the plot title
-            save_file_name = savefile_path.replace('\\', '/') # Default paths to linux style (works on Windows too, but not vice versa)
+            save_file_name = savefile_path.replace('\\', '/')  # Default paths to linux style (works on Windows too, but not vice versa)
             display_filepath = save_file_name.split('/')[-2] + '/' + save_file_name.split('/')[-1]
 
-            savefile_path_img = savefile_path[:-4].replace('.',',') + '.dat' # Strip off dots from file name so it allows saving an image
+            savefile_path_img = savefile_path[:-4].replace('.', ',') + '.dat'  # Strip off dots from file name so it allows saving an image
             self.plots[self.tab_idx].ax.set_title(display_filepath )
             self.update_canvas(self, save_png_path=savefile_path_img)
 
+    ##################
+    # AUTOCORRELATOR #
+    ##################
 
+    def autocorrelatorTabUI(self):
+        """ Create widgets and layout for autocorrelator tab. """
+        layout = QHBoxLayout(self.autocorrelatorTab)
+
+        # MONOCHROMATOR SETTINGS #
+        zstageFrame = QFrame()
+        zstageFrameLayout = QVBoxLayout(zstageFrame)
+
+        zstageHardwareFrame = QGroupBox('Translation Stage')
+
+        # Connections
+        zstageConnectionsLayout = QHBoxLayout(zstageHardwareFrame)
+        self.zstageCmb = QComboBox(zstageFrame)
+        self.zstageCmb.addItems(['Zaber'])
+        self.zstageComPort = QLineEdit(zstageFrame)
+        self.zstageComPort.setText(ut.available_serial_ports()[0])
+        connectZstageBtn = self.createRibbonBtn(parent=self.autocorrelatorTab, onPushMethod=self.onPushConnectZstageBtn, text='Connect', icon_filepath=self.resources_folder + 'icon_network.png', icon_size=20, icon_pos='left', btn_type='toolbutton')
+
+        zstageConnectionsLayout.addWidget(self.zstageCmb)
+        zstageConnectionsLayout.addWidget(self.zstageComPort)
+        zstageConnectionsLayout.addWidget(connectZstageBtn)
+
+        # Forwards / backwards buttons
+        self.zstageBtns = QWidget()
+
+        self.zstageBtns.setEnabled(False)  # Disable Z stage commands until connected
+        zstageBtnsLayout = QVBoxLayout(self.zstageBtns)
+        zstageBtnsRow1Layout = QHBoxLayout()
+        zstageBtnsRow2Layout = QHBoxLayout()
+        zstageBtnsRow3Layout = QHBoxLayout()
+        plus1Btn = self.createRibbonBtn(parent=self.autocorrelatorTab, onPushMethod=lambda: self.moveZstage(step=+0.1), text='0.1 mm', icon_filepath=self.resources_folder+'icon_f1.png', icon_size=20, icon_pos='left', btn_type='toolbutton')
+        plus2Btn = self.createRibbonBtn(parent=self.autocorrelatorTab, onPushMethod=lambda: self.moveZstage(step=+1.0), text='1 mm', icon_filepath=self.resources_folder+'icon_f2.png', icon_size=20, icon_pos='left', btn_type='toolbutton')
+        plus3Btn = self.createRibbonBtn(parent=self.autocorrelatorTab, onPushMethod=lambda: self.moveZstage(step=+10), text='10 mm', icon_filepath=self.resources_folder+'icon_f3.png', icon_size=20, icon_pos='left', btn_type='toolbutton')
+        minus1Btn = self.createRibbonBtn(parent=self.autocorrelatorTab, onPushMethod=lambda: self.moveZstage(step=-0.1), text='0.1 mm', icon_filepath=self.resources_folder+'icon_b1.png', icon_size=20, icon_pos='left', btn_type='toolbutton')
+        minus2Btn = self.createRibbonBtn(parent=self.autocorrelatorTab, onPushMethod=lambda: self.moveZstage(step=-1.0), text='1 mm', icon_filepath=self.resources_folder+'icon_b2.png', icon_size=20, icon_pos='left', btn_type='toolbutton')
+        minus3Btn = self.createRibbonBtn(parent=self.autocorrelatorTab, onPushMethod=lambda: self.moveZstage(step=-10), text='10 mm', icon_filepath=self.resources_folder+'icon_b3.png', icon_size=20, icon_pos='left', btn_type='toolbutton')
+        zstageBtnsRow1Layout.addWidget(plus1Btn)
+        zstageBtnsRow1Layout.addWidget(plus2Btn)
+        zstageBtnsRow1Layout.addWidget(plus3Btn)
+        zstageBtnsRow2Layout.addWidget(minus1Btn)
+        zstageBtnsRow2Layout.addWidget(minus2Btn)
+        zstageBtnsRow2Layout.addWidget(minus3Btn)
+
+        zstageBtnsLayout.addLayout(zstageBtnsRow1Layout)
+        zstageBtnsLayout.addLayout(zstageBtnsRow2Layout)
+        zstageBtnsLayout.addLayout(zstageBtnsRow3Layout)
+
+        zstageFrameLayout.addWidget(zstageHardwareFrame)
+        zstageFrameLayout.addWidget(self.zstageBtns)
+
+        # DETECTION SETTINGS #
+        detectorFrame = QFrame()
+        detectorFrameLayout = QVBoxLayout(detectorFrame)
+
+        detectorSettingsLayout = QFormLayout()
+        self.acOscCmb = QComboBox()
+        self.acOscCmb.addItems(self.OSCs)
+
+        acChannelChoice = QWidget(detectorFrame)
+        acChannelChoiceLayout = QHBoxLayout(acChannelChoice)
+        self.acOscCh1 = QRadioButton('1')
+        self.acOscCh2 = QRadioButton('2')
+        self.acOscCh3 = QRadioButton('3')
+        self.acOscCh4 = QRadioButton('4')
+        self.acOscCh1.setChecked(True)
+        acChannelChoiceLayout.addWidget(QLabel('Ch:'))
+        acChannelChoiceLayout.addWidget(self.acOscCh1)
+        acChannelChoiceLayout.addWidget(self.acOscCh2)
+        acChannelChoiceLayout.addWidget(self.acOscCh3)
+        acChannelChoiceLayout.addWidget(self.acOscCh4)
+
+        self.acScanRange = QSpinBox(detectorFrame)
+        max_distance = 60  # mm, for Zaber stage
+        max_delay = 2 * max_distance / ut.c_mm_ps
+        self.acScanRange.setRange(0, max_delay)
+        self.acScanRange.setValue(10)
+        self.acFit = QComboBox(detectorFrame)
+        self.acFit.addItems(['None', 'Sech^2', 'Gaussian'])
+
+        self.zstageScanSpeed = QDoubleSpinBox(detectorFrame)
+        self.zstageScanSpeed.setDecimals(3)
+        self.zstageScanSpeed.setRange(0.001, 4)  # As per: https://www.zaber.com/products/product_detail.php?detail=T-LA60A
+        self.zstageScanSpeed.setValue(4)
+
+        acOscFrame = QGroupBox('Oscilloscope')
+        acOscFrameLayout = QFormLayout(acOscFrame)
+
+        acOscFrameLayout.addRow('Device:', self.acOscCmb)
+        acOscFrameLayout.addRow(acChannelChoice)
+
+        detectorSettingsLayout.addRow('Z stage speed (mm/s):', self.zstageScanSpeed)
+        detectorSettingsLayout.addRow('Scan Range (ps):', self.acScanRange)
+
+        acMoveStageNoGrabBtn = self.createRibbonBtn(parent=self.autocorrelatorTab, onPushMethod=self.moveStageNoGrab, text='Start Alignment Mode', icon_filepath=self.resources_folder + 'icon_monitor.png', icon_size=25, btn_type='pushbutton')
+
+        detectorFrameLayout.addWidget(acOscFrame)
+        detectorFrameLayout.addLayout(detectorSettingsLayout)
+        detectorFrameLayout.addWidget(acMoveStageNoGrabBtn)
+
+
+        # SCAN SETTINGS #
+        self.acScanFrame = QFrame()
+        self.acScanFrame.setEnabled(False)
+
+
+
+        scanFrameLayout = QVBoxLayout(self.acScanFrame)
+
+        acScanSettingsLayout = QFormLayout()
+        acScanSettingsLayout.addRow('Pulse Fit:', self.acFit)
+
+        btnRow1 = QHBoxLayout()
+        btnRow2 = QHBoxLayout()
+
+        self.acStartScanBtn = self.createRibbonBtn(parent=self.grabTab, onPushMethod=self.onPushAutocorrelatorStart, text='  Start', icon_filepath=self.resources_folder+'icon_start.png', icon_size=30, btn_type='pushbutton')
+        self.acStopScanBtn = self.createRibbonBtn(parent=self.grabTab, onPushMethod=self.onPushAutocorrelatorStop, text='  Stop', icon_filepath=self.resources_folder+'icon_stop.png', icon_size=30, btn_type='pushbutton')
+        self.acStopScanBtn.setEnabled(False)
+        saveScanBtn = self.createRibbonBtn(parent=self.grabTab, onPushMethod=self.onPushSaveAutocorrelatorDataBtn, text='    Save Data', icon_filepath=self.resources_folder+'icon_save.png', icon_size=30, btn_type='pushbutton')
+
+        btnRow1.addWidget(self.acStartScanBtn)
+        btnRow1.addWidget(self.acStopScanBtn)
+        btnRow2.addWidget(saveScanBtn)
+
+        scanFrameLayout.addLayout(acScanSettingsLayout)
+        scanFrameLayout.addLayout(btnRow1)
+        scanFrameLayout.addLayout(btnRow2)
+
+        layout.addWidget(zstageFrame)
+        layout.addWidget(detectorFrame)
+        layout.addWidget(self.acScanFrame)
+
+    def onPushConnectZstageBtn(self):
+        """ Establish connection with linear translation stage. """
+        try:
+            self.zstage = mq_optomechanics.ZaberLinearTranslationStage(com_port=self.zstageComPort.text())
+            self.setStatusBar('Successfully connected to {}.'.format(self.zstageCmb.currentText()))
+            self.ac_update_interface_disabled_options()
+        except Exception as e:
+            self.show_error_dialog('Serial connection error: {}.\n\nCheck the COM port is correct and that device is powered on.'.format(e))
+
+    def ac_update_interface_disabled_options(self, status='ready'):
+        """ Enable UI options if the user has connected to zstage. """
+        # For autcorrelator usage, we always want to disable automatic saving of plots
+        self.automatically_save_plots_to_disk = False
+
+        if hasattr(self, 'zstage'):
+            self.zstageBtns.setEnabled(True)  # Enable zstage commands
+            self.acScanFrame.setEnabled(True)  # Enable AC measurements
+            self.acStartScanBtn.setEnabled(True)
+            self.acStopScanBtn.setEnabled(False)
+
+        if status == 'scanning':
+            self.zstageBtns.setEnabled(False)
+            self.acStartScanBtn.setEnabled(False)
+            self.acStopScanBtn.setEnabled(True)
+
+    def moveZstage(self, goto_pos=None, step=None):
+        """ Move monochromator to either a given positoin (goto_pos [mm]), or a step (+ = forward, - = backwards [mm]). """
+        if goto_pos is not None:
+            self.zstage.move_to(goto_pos)
+
+        elif step is not None:
+            self.zstage.move_by(step)
+
+    def moveStageNoGrab(self):
+        """ Oscillate the stage to create AC trace on oscilloscope, but don't grab the data. Useful for aligning & optimising the setup. """
+        self.setStatusBar('Autocorrelator running')
+        self.ac_update_interface_disabled_options(status='scanning')
+        self.ac_scanner_thread = Thread(target=self.runACScanner, args=(self.acScanRange.value(), self.zstageScanSpeed.value(), None, None, self.acFit.currentText(), True))
+        self.ac_scanner_thread.wants_abort = False
+        self.ac_scanner_thread.start()
+
+    def onPushAutocorrelatorStart(self):
+        """ Start an autocorrelation measurement. """
+        # Connect to oscilloscope
+        osc_id = self.acOscCmb.currentText()
+        if 'HP54616C' in osc_id:
+            osc = mq_osc.HP54616C(interface='gpib-ethernet', mq_id=osc_id)
+        elif 'TektronixTDS794D' in osc_id:
+            osc = mq_osc.TektronixTDS794D(interface='gpib-ethernet', mq_id=osc_id)
+        self.clear_plot()
+        if self.acOscCh1.isChecked():
+            osc_channel = '1'
+        elif self.acOscCh2.isChecked():
+            osc_channel = '2'
+        elif self.acOscCh3.isChecked():
+            osc_channel = '3'
+        elif self.acOscCh4.isChecked():
+            osc_channel = '4'
+
+        self.setStatusBar('Autocorrelator running')
+        self.ac_update_interface_disabled_options(status='scanning')
+        self.ac_scanner_thread = Thread(target=self.runACScanner, args=(self.acScanRange.value(), self.zstageScanSpeed.value(), osc, osc_channel, self.acFit.currentText()))
+        self.ac_scanner_thread.wants_abort = False
+        self.ac_scanner_thread.start()
+
+    def onPushAutocorrelatorStop(self):
+        """ Stop a currently running autocorrelation measurement. """
+        if hasattr(self, 'ac_scanner_thread'):
+            self.ac_scanner_thread.wants_abort = True
+            self.ac_update_interface_disabled_options(status='ready')
+            self.setStatusBar('Ready')
+
+    def runACScanner(self, scan_range, stage_speed, osc, osc_channel, fit, disable_grab=False):
+        """ Autocorrelator scanning thread.
+
+        Args:
+            scan_range [ps]
+            stage_speed [mm/s]
+            zero_delay_position [mm]
+            osc : instantiated oscilloscope object
+            osc_channel (str)
+            fit (str): fit type
+        """
+        # Prepare stage for scanning
+        self.zstage.set_default_move_speed(stage_speed)
+        time.sleep(0.1)
+
+        # To improve stability, add a small delay between stage moving back and forwards
+        scan_range_mm = scan_range * ut.c_mm_ps
+        wait_delay = scan_range_mm / stage_speed * 1.1  # add 10% for safety
+        print(f'Wait delay = {wait_delay}')
+
+        while True:
+            # Oscillage 1 cycle of the stage
+            self.zstage.move_by(scan_range_mm)
+            time.sleep(wait_delay)
+            self.zstage.move_by(-scan_range_mm)
+            time.sleep(wait_delay)
+
+            if not disable_grab:
+                # Grab oscilloscope data (TODO: would this be better in a separate class, so grabbing and moving the stage are handled independently?)
+                try:
+                    tms, intensities = self.instrument_data_grab(osc, channel=osc_channel)
+                    # Convert from oscilloscope timebase to AC delay using known stage movement speed
+                    stage_positions = tms * stage_speed  # mm
+                    delays = 2 * stage_positions / ut.c_mm_s  # [s], factor of two since light is reflected in the delay arm
+
+                    # Save to class
+                    self.plots[self.tab_idx].grabbed_data = np.column_stack([delays, intensities])
+
+                    # Plot data
+                    self.plots[self.tab_idx].ax.cla()
+                    units = ut.eng_prefix(delays)[1] + 's'
+                    self.plots[self.tab_idx].ax.plot(ut.eng_prefix(delays)[0], intensities, '-', color='C0')
+                    self.plots[self.tab_idx].ax.set_xlabel('Delay ({})'.format(units))
+                    self.plots[self.tab_idx].ax.set_ylabel('Intensity (V)')
+
+                    # Apply fit if desired
+                    annotation = ''
+                    if fit != 'None':
+                        try:
+                            fit = fit.replace('Sech^2', 'sech2')  # Present sech^2 pulses as sech2 for fitting
+                            fit = fit.replace('Gaussian', 'gaussian')
+                            x_fit, y_fit, coefs, pcov = ut.fitted(ut.eng_prefix(delays)[0], intensities, fit)
+                            fwhm_interpolated = ut.width_of_dataset(x=x_fit, y=y_fit, threshold=0.5, scale='lin', interpolate=True)
+                            decon_fwhm = fwhm_interpolated * ut.ac_deconvolution_factor[fit]
+                            annotation = '%s FWHM:\n%0.3f %s (AC) -> %0.3f %s (Deconvolved)' % (fit, fwhm_interpolated, units, decon_fwhm, units)
+                            self.plots[self.tab_idx].ax.plot(x_fit, y_fit, '-', color='red', lw=3)
+                        except Exception:
+                            annotation = 'Fit failed.'
+
+                except Exception:
+                    annotation = 'Oscilloscope error - grab failed.'
+
+                self.annotate_canvas(annotation, color='C0', update_global_i=False, update_canvas_afterwards=False)
+
+                self.update_canvas(copy_to_clipboard=False, disable_autosave=True)
+
+            # Exit the FOR loop if the thread is to be aborted
+            if self.ac_scanner_thread.wants_abort:
+                break
+
+    def onPushSaveAutocorrelatorDataBtn(self):
+        """ Saves grabbed autocorrelator data to a text file, appending a header and datetime stamp too. """
+        header1 = '# Autocorrelation measured with MQ TPA autocorrelator'
+        header2 = '# Date: %s\n' % time.asctime()
+
+        # Open dialgoue window then save data to the user-specified path
+        savefile_path = QFileDialog.getSaveFileName(self, 'Save grabbed data', filter="Data files (*.dat);;All files (*.*)")
+        if savefile_path[0]:  # If user presses cancel, two empty strings return, so only process for an OK click
+            # There's a strange occurence where getSaveFileName sometimes returns the extensions, and other times doesn't (perhaps Qt4/5 issue?). Catch this:
+            if ('Data files' in savefile_path[-1]) or ('All files' in savefile_path[-1]):
+                savefile_path = savefile_path[0]
+
+            data_to_save = self.plots[self.tab_idx].grabbed_data.copy()
+
+            with open(savefile_path, 'wb') as f:
+                f.write(header1.encode())  # Encode converts string to bytes object for python 3 (since file has to be opened in wb mode)
+                f.write(header2.encode())
+                np.savetxt(f, data_to_save)
+
+            self.setStatusBar('Data saved to %s' % savefile_path)
+
+            # Add the recently assigned file name to the plot title
+            save_file_name = savefile_path.replace('\\', '/')  # Default paths to linux style (works on Windows too, but not vice versa)
+            display_filepath = save_file_name.split('/')[-2] + '/' + save_file_name.split('/')[-1]
+
+            savefile_path_img = savefile_path[:-4].replace('.', ',') + '.dat'  # Strip off dots from file name so it allows saving an image
+            self.plots[self.tab_idx].ax.set_title(display_filepath)
+            self.update_canvas(self, save_png_path=savefile_path_img)
 
     #######################
     # PLOT AREA FUNCTIONS #
     #######################
 
-    def update_canvas(self, span_selector_enable=True, save_png_path=None, copy_to_clipboard=True):
+    def update_canvas(self, span_selector_enable=True, save_png_path=None, copy_to_clipboard=True, disable_autosave=False):
         """ Updates the canvas with the latest data in self.ax and saves a copy of the canvas to disk """
         # Global plot formatting
         self.plots[self.tab_idx].ax.grid(True)
@@ -1528,33 +1856,39 @@ class MainWindow(QMainWindow):
             self.plots[self.tab_idx].ax.get_yaxis().get_major_formatter().set_useOffset(False)
             self.plots[self.tab_idx].ax.get_xaxis().get_major_formatter().set_scientific(False)  # Turn off exponent form in x-axis
             self.plots[self.tab_idx].ax.get_xaxis().get_major_formatter().set_useOffset(False)
-        except:  # Error arises for axis manipulation beam plot and time-driven plots
+        except Exception:  # Error arises for axis manipulation beam plot and time-driven plots
             pass
 
         self.plots[self.tab_idx].figure.tight_layout(pad=0.2)
         self.plots[self.tab_idx].figure.canvas.draw()
+
         if copy_to_clipboard:
+            print('coping to clip')
             self.copy_canvas()
 
-        # Save the plotted file automatically to the same directory (if selected in user config file), but only if the data file has been saved already
-        if self.automatically_save_plots_to_disk:
-            if 'Data Grab' in self.filesList.item(0).text():
-                if save_png_path:
+        if not disable_autosave:
+            # Save the plotted file automatically to the same directory (if selected in user config file), but only if the data file has been saved already
+            if self.automatically_save_plots_to_disk:
+                if 'Data Grab' in self.filesList.item(0).text():
+                    if save_png_path:
+                        self.save_file_name = self.save_file_name.replace('.', ',')  # Replace full stops with commas, since full stops aren't permitted in file names saved by Python
+                        self.plots[self.tab_idx].figure.savefig(save_png_path[:-4])
+                else:
                     self.save_file_name = self.save_file_name.replace('.', ',')  # Replace full stops with commas, since full stops aren't permitted in file names saved by Python
-                    self.plots[self.tab_idx].figure.savefig(save_png_path[:-4])
-            else:
-                self.save_file_name = self.save_file_name.replace('.', ',')  # Replace full stops with commas, since full stops aren't permitted in file names saved by Python
-                self.plots[self.tab_idx].figure.savefig(os.path.dirname(self.filesList.item(0).text()) + '/' + self.save_file_name)
+                    self.plots[self.tab_idx].figure.savefig(os.path.dirname(self.filesList.item(0).text()) + '/' + self.save_file_name)
 
         # Enable span selector
         if span_selector_enable:
             self.span = matplotlib.widgets.SpanSelector(self.plots[self.tab_idx].ax, self.get_span_coords, 'horizontal', rectprops=dict(alpha=0.4, facecolor="red"))
 
-    def annotate_canvas(self, msg, color):
+    def annotate_canvas(self, msg, color, update_global_i=True, update_canvas_afterwards=True):
         """ Adds the argument msg to the canvas at a convenient position. """
-        self.plots[self.tab_idx].ax.text(0.02, (0.85-(self.global_i * 0.09)), msg, color=color, transform=self.plots[self.tab_idx].ax.transAxes, size=10)
-        self.global_i = self.global_i + 1
-        self.update_canvas()
+        self.plots[self.tab_idx].ax.text(0.02, (0.85 - (self.global_i * 0.09)), msg, color=color, transform=self.plots[self.tab_idx].ax.transAxes, size=12)
+        if update_global_i:
+            self.global_i = self.global_i + 1
+
+        if update_canvas_afterwards:
+            self.update_canvas()
 
     def copy_canvas(self, info=None):
         """ Copies the matplotlib figure canvas to the clipboard for easy pasting into notes etc. """
@@ -1570,8 +1904,9 @@ class MainWindow(QMainWindow):
             self.cb.setImage(tempImg)
             try:
                 os.remove(temp_img_filepath)
-            except:
+            except Exception:
                 pass
+
     def get_span_coords(self, x_min, x_max):
         self.x_min = x_min
         self.x_max = x_max
@@ -1583,7 +1918,7 @@ class MainWindow(QMainWindow):
             units = xlabel.split('(')[-1].split(')')[0]
             selected_range_text = 'Selection: %0.3f to %0.3f %s. Span: %0.3f %s. Centre: %0.3f %s' % (x_min, x_max, units, x_span, units, x_centre, units)
             self.setStatusBar(selected_range_text)
-        except:
+        except Exception:
             # If this fails, simply move on and don't raise an exception.
             pass
 
@@ -1617,11 +1952,11 @@ class MainWindow(QMainWindow):
         msg.setWindowTitle('Error')
         msg.exec_()
 
-    def except_hook(self, cls, exception, traceback):
-        """ Reimplementation of general exception handler (http://stackoverflow.com/questions/35596250/pyqt5-gui-crashes-when-qtreewidget-is-cleared).
-        When an error occurs, an abbreviated message is shown in a warning box to alert the user, while the full traceback exception print-out is shown in the terminal. """
-        self.show_error_dialog('Unexpected Error: %s\n%s\n\nSee terminal for full error trace.' % (cls, exception))
-        sys.__excepthook__(cls, exception, traceback)
+    # def except_hook(self, cls, exception, traceback):
+    #     """ Reimplementation of general exception handler (http://stackoverflow.com/questions/35596250/pyqt5-gui-crashes-when-qtreewidget-is-cleared).
+    #     When an error occurs, an abbreviated message is shown in a warning box to alert the user, while the full traceback exception print-out is shown in the terminal. """
+    #     self.show_error_dialog('Unexpected Error: %s\n%s\n\nSee terminal for full error trace.' % (cls, exception))
+    #     sys.__excepthook__(cls, exception, traceback)
 
 
 if __name__ == '__main__':
@@ -1631,6 +1966,6 @@ if __name__ == '__main__':
 
     app = QApplication(sys.argv)
     mainWin = MainWindow()
-    sys.excepthook = mainWin.except_hook
+    # sys.excepthook = mainWin.except_hook
     mainWin.show()
     sys.exit(app.exec_())

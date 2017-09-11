@@ -10,8 +10,12 @@ import numpy as np
 import mqlab.utils as ut
 from mqlab.connections import Instrument
 
-import ftd2xx
-from ftd2xx.defines import BITS_8, STOP_BITS_1, PARITY_NONE, FLOW_RTS_CTS
+try:
+    import ftd2xx
+    from ftd2xx.defines import BITS_8, STOP_BITS_1, PARITY_NONE, FLOW_RTS_CTS
+except Exception:
+    print('FTD2xx (THORLABS motor controller) import failed. Install Kinesis software and check FTD2xx DLL is installed correctly.')
+import zaber.serial as zaber
 
 
 class ThorlabsK10CR1(object):
@@ -29,7 +33,6 @@ class ThorlabsK10CR1(object):
     # 0.02 s seems to work well
     # COMMS_DELAY = 0.02
     COMMS_DELAY = 0.05
-
 
     # Encoder information (mapping counts to real-world values), angular distance units are in degrees
     POS_COUNT_FACTOR = 136533
@@ -187,3 +190,77 @@ class ThorlabsK10CR1(object):
         time.sleep(self.COMMS_DELAY)
         response = self.receive(dtype=dtype)
         return response
+
+
+class ZaberLinearTranslationStage(zaber.BinaryDevice):
+    """ Control interface for Zaber linear translation stage, based on their provided library with added functionality (for data entry in physical units).
+
+    References:
+        https://www.zaber.com/products/product_detail.php?detail=T-LA60A
+    """
+
+    # Single step is called a "microstep" with 0.09921875 um phyical distance
+    microstep_size_mm = 0.09921875 * 1e-3
+
+    def __init__(self, com_port=None):
+        """ Initialise Zaber connection.
+
+        Args:
+            port : port label e.g. 'COM1'
+        """
+        if not com_port:
+            com_port = ut.available_serial_ports()[0]
+        serial_connection = zaber.BinarySerial(com_port)
+        super().__init__(serial_connection, 1)
+
+        # Default to max acceleration
+        time.sleep(0.1)
+        self.set_acceleration_to_max()
+
+    def send_no_reply(self, *args):
+        """Sends a command to this device, without expecting a response. """
+        if len(args) == 1 and isinstance(args[0], zaber.BinaryCommand):
+            command = args[0]
+        elif len(args) < 4:
+            command = zaber.BinaryCommand(self.number, *args)
+
+        command.device_number = self.number
+        self.port.write(command)
+
+    def _distance_microsteps_from_mm(self, distance_mm):
+        return int(distance_mm / self.microstep_size_mm)
+
+    def _speed_microsteps_from_mm_s(self, speed_mm_s):
+        return int(speed_mm_s / (9.375 * self.microstep_size_mm))
+
+    def home(self):
+        self.send_no_reply(1)
+
+    def get_position(self):
+        """ Return position (mm). """
+        return self.send(60).data
+
+    def move_by(self, distance):
+        """ Move relative distance (mm). """
+        self.send_no_reply(21, self._distance_microsteps_from_mm(distance))
+        # self.move_rel(self._distance_microsteps_from_mm(distance))
+
+    def move_to(self, position):
+        """ Move to an absolute position (only works in the stage has been homed first so it has a zero position known). """
+        self.send_no_reply(20, self._distance_microsteps_from_mm(position))
+        # self.move_abs(self._distance_microsteps_from_mm(position))
+
+    def move_continuously(self, speed):
+        """ Move continuously (unless self.stop executed / buffer is hit) at speed (mm/s). """
+        self.send_no_reply(22, self._speed_microsteps_from_mm_s(speed))
+        # self.move_vel(self._speed_microsteps_from_mm_s(speed))
+
+    def set_default_move_speed(self, speed):
+        """ Set default target speed, for move commands (mm/s).
+        Permissible range is: 0.0009302 mm/s to 4 m /s
+        """
+        self.send_no_reply(42, self._speed_microsteps_from_mm_s(speed))
+
+    def set_acceleration_to_max(self):
+        """ From manual: If acceleration is set to 0, it is as if acceleration is set to (512*R-1). Effectively acceleration is turned off and the device will start moving at the target speed immediately. """
+        self.send_no_reply(43, 0)

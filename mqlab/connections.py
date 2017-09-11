@@ -103,6 +103,13 @@ class Instrument(object):
         """ Query the device using the standard IDN command, often triggering it to return the make, model etc. """
         return self.query('*IDN?')
 
+    def set_local_mode(self):
+        """ Set instrument back to local mode, if it's locked in remote access only mode. """
+        try:
+            self.connection.vxi11.local()
+        except Exception:
+            print('Failed: command only works for GPIB-Ethernet devices.')
+
     def _decode_binary_block(self, block, dtype):
         """ Convert a binary block (as defined by IEEE 488.2), which is commonly returned by lab
         instruments, to a numpy array.

@@ -5,3 +5,5 @@ matplotlib
 pyserial
 python-vxi11
 pyvisa
+ftd2xx
+zaber.serial

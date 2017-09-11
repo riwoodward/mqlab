@@ -5,9 +5,11 @@ from builtins import ascii, bytes, chr, dict, filter, hex, input, int, map, next
 import serial
 import os
 import numpy as np
+import pickle as Pickle
 from glob import glob
 from scipy.optimize import curve_fit
 from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.constants import c
 
 ###############################
 # PYTHON 2 TO 3 COMPATIBILITY #
@@ -17,6 +19,24 @@ try:
     basestring  # Py2
 except NameError:
     basestring = str  # Py3
+
+####################
+# USEFUL CONSTANTS #
+####################
+c_mm_ps = c * 1e3 / 1e12   #: Speed of light in vacuum [mm/ps]
+c_mm_s = c * 1e3           #: Speed of light in vacuum [mm/s]
+
+#: Deconvolution factors to convert from measured AC FWHM to true pulse FWHM.
+#:
+#: References:
+#:     http://spie.org/x32463.xml, R. Paschotta
+ac_deconvolution_factor = {
+    'sech': 0.647,
+    'sech2': 0.647,
+    'gaussian': 0.707,
+    'triangular': 0.692,
+    'rectangular': 1
+}
 
 
 #######################
@@ -86,10 +106,10 @@ def read_data(file_path, data_source):
             data = np.loadtxt(file_path)
 
     elif data_source == 'osc':
-        data = np.loadtxt(file_path, delimiter=' ')
+        data = np.loadtxt(file_path)
 
     elif data_source == 'esa':
-        data = np.loadtxt(file_path, delimiter=' ')
+        data = np.loadtxt(file_path)
 
     elif data_source == 'ccd':
         pass
@@ -122,7 +142,7 @@ unit_dict = {
     -15: 'f',     # femto
     -12: 'p',     # pico
     -9: 'n',      # nano
-    -6: '$\mu$',  # micro
+    -6: r'$\mu$',  # micro
     -3: 'm',      # mili
     -2: 'c',      # centi
     -1: 'd',      # deci
@@ -152,26 +172,43 @@ def unit_dict_return_exp(target_prefix):
             return exp
 
 
-def eng_prefix(x, source='not an osa'):
+def eng_prefix(x, force_use_of_n_instead_of_u=False):
     """ Given a floating-point quantity, returns mantissa as the nearest engineering-exponented mantissa value and the corresponding prefix.
 
     Args:
         x : array of values
-        source : Set source to 'osa' to return optical spectrum data in nm rather than um.
+        force_use_of_n_instead_of_u : for forcing wavelengths to be displayed in nm. Set False unless you explicitly want this.
     Returns:
         (array of x values divided by the multiplier corresponding to string value of the prefix, prefix label as string)
     """
-    if np.size(x) > 1:
-        exp = np.floor(np.log10(abs(x[int(0.6 * np.size(x))])))  # if given an array, use near the half point
+    # Legacy function to allow argument to be the data source label (i.e. for 'osa' use nm scale)
+    if (force_use_of_n_instead_of_u is True) or (force_use_of_n_instead_of_u == 'osa'):
+        force_use_of_n_instead_of_u = True
     else:
-        exp = np.floor(np.log10(abs(x)))  # Get exponent for the single value
+        force_use_of_n_instead_of_u = False
+
+    # If passed an array, use near the half point to evaluate the prefix
+    if np.size(x) > 1:
+        evaluation_value = abs(x[int(0.6 * np.size(x))])
+    else:
+        evaluation_value = abs(x)
+
+    # Catch zero input
+    if evaluation_value == 0:
+        return 0.0, ''
+
+    # Get exponent for the single value
+    exp = np.floor(np.log10(evaluation_value))
+
     engr_exp = int(exp - (exp % 3))  # Round exponent down to nearest multiple of 3
     mantissa = x / (10**engr_exp)
-    # Manuallly override so VIS/NIR wavelengths are displayed in nm
-    if source == 'osa':
+
+    if force_use_of_n_instead_of_u:
         if exp == -6:
             engr_exp = -9
             mantissa = mantissa * 1e3
+
+    mantissa = np.round(mantissa, 12)  # Round to 12 decimal places (thus discounting any spurious negligible decimal places due to floating point precision)
     return mantissa, unit_dict[engr_exp]
 
 
@@ -484,7 +521,7 @@ def fitted(x, y, fit_type, p0=None, sigma=None):
     coeff, pcov = fit(x, y, fit_type, p0, sigma)
 
     # Populate new dense arrays with the fitted function (for plotting accurately)
-    x_fit = np.linspace(min(x),max(x), 1e4)
+    x_fit = np.linspace(min(x), max(x), 1e4)
 
     if isinstance(fit_type, basestring):  # If fit_type is a string
         if 'poly' in fit_type:
@@ -496,3 +533,24 @@ def fitted(x, y, fit_type, p0=None, sigma=None):
         y_fit = fit_type(x_fit, *coeff)
 
     return x_fit, y_fit, coeff, pcov
+
+
+########################
+#   MISC CODING TOOLS  #
+########################
+
+class empty_object(object):
+    """ An empty class which is useful for coding in an OOP style. """
+    pass
+
+
+def pickle_object(source_object, target_file_path):
+    """ Save an object to disk at location: target_file_path.
+    No file extension is defined, but .p is a good choice.
+    """
+    Pickle.dump(source_object, open(target_file_path, "wb"))
+
+
+def unpickle_object(file_name):
+    """ Returns a previously pickled object from file_name. """
+    return Pickle.load(open(file_name, "rb"))

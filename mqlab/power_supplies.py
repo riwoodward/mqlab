@@ -6,7 +6,15 @@ from mqlab.connections import Instrument
 
 
 class PowerSupply(Instrument):
-    pass
+
+    def __init__(self, max_currrent_A=1000, **kwargs):
+        """ Init for power supply including a safety routine to limit accidental setting of erroneously high currents. """
+
+        # Store current limit
+        self.max_currrent_A = max_currrent_A
+
+        # Init main MQ instrument class
+        super().__init__(**kwargs)
 
 
 class HP6653A(PowerSupply):
@@ -14,7 +22,10 @@ class HP6653A(PowerSupply):
 
     def set_current(self, current):
         """ Set the current limit to the user specified current (A) maintaining all other settings. """
-        self.send('CURR {:.3f}'.format(current))
+        if current > self.max_currrent_A:
+            raise ValueError('Entered current value [{} A] is above the device max current limit [{} A]. Check input and raise the current limit when initialising the device connection if needed.'.format(current, self.max_currrent_A))
+        else:
+            self.send('CURR {:.3f}'.format(current))
 
     def set_voltage(self, voltage):
         """ Set the voltage limit to the user specified voltage (V) maintaining all other settings. """
@@ -42,7 +53,10 @@ class Newport5600(PowerSupply):
 
     def set_current(self, current):
         """ Set the current limit to the user specified current (A) maintaining all other settings. """
-        self.send('LASer:LDI {:.3f}'.format(current))
+        if current > self.max_currrent_A:
+            raise ValueError('Entered current value [{} A] is above the device max current limit [{} A]. Check input and raise the current limit when initialising the device connection if needed.'.format(current, self.max_currrent_A))
+        else:
+            self.send('LASer:LDI {:.3f}'.format(current))
 
     def set_voltage(self, voltage):
         """ Set the voltage limit to the user specified voltage (V) maintaining all other settings. """
@@ -63,3 +77,7 @@ class Newport5600(PowerSupply):
     def set_output_on(self):
         """ Enable output. """
         self.send('LASer:OUTput 1')
+
+    # Create virtual entities for current and votlage so they can be simply accessed as variables (e.g. self.current=1) rather than using setters / getters
+    current = property(get_current, set_current)
+    voltage = property(get_voltage, set_voltage)

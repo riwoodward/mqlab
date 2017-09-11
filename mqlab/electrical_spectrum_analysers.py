@@ -21,7 +21,7 @@ class AnritsuMS2683A(ElectricalSpectrumAnalyser):
         """ Return freqs [Hz] and spectral intensities [dBm] data currently displayed on device. """
         # Grab & decode binary data, which is returned in big-endian 2-byte (16-bit) integer format
         # The values are integer values of 0.01 dBm units (log scale assumed)
-        data = self.query('BIN 1;XMA? 0,501')  # Set to binary data transfer mode and request y data
+        data = self.query('BIN 1;XMA? 0,1001')  # Set to binary data transfer mode and request y data
         intensities_arb_units = self._decode_binary_block(data, dtype='>i2')
         intensities_dBm = 0.01 * intensities_arb_units
 

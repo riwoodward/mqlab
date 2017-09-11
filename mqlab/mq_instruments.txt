@@ -45,3 +45,7 @@ gpib_address = 7
 [Newport5600]
 device_type = ps
 gpib_address = 8
+
+[APEPulseCheck]
+device_type = pdd
+terminating_char = CRLF
