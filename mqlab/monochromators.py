@@ -44,22 +44,29 @@ class CM112(Monochromator):
 
     def set_position(self, wl):
         """ Moves monochromator to user-given wavelength, wl [nm]. """
-        # Wavelength position can be sent in either um, nm or Angstrom, as 2-byte form.
-        # Since an int value must be sent, this limits both the resolution and max value that can be set
-        if wl > (2**16 / 10):
-            # Value too high to send in Angstrom units, so send in nm (setting resolution = 1 nm)
-            if self._current_units != 'nm':
-                self.set_units('nm')
-            # Combine the one-byte goto command with two-byte wl position
-            cmd = struct.pack('>B', 16) + struct.pack('>H', wl)
-        else:
-            # Value low enough to use Angstrom units (setting resolution = 1A = 0.1 nm)
-            if self._current_units != 'A':
-                self.set_units('A')
-            wl_angstrom = int(wl * 10)
-            cmd = struct.pack('>B', 16) + struct.pack('>H', wl_angstrom)
+        # FORCE USING nm
+        if self._current_units != 'nm':
+            self.set_units('nm')
 
+        # Combine the one-byte goto command with two-byte wl position
+        cmd = struct.pack('>B', 16) + struct.pack('>H', int(wl))
         self.send(cmd)
+
+        # # Wavelength position can be sent in either um, nm or Angstrom, as 2-byte form.
+        # # Since an int value must be sent, this limits both the resolution and max value that can be set
+        # if wl > (2**16 / 10):  # 6553.6 nm
+        #     # Value too high to send in Angstrom units, so send in nm (setting resolution = 1 nm)
+        #     if self._current_units != 'nm':
+        #         self.set_units('nm')
+        #     # Combine the one-byte goto command with two-byte wl position
+        #     cmd = struct.pack('>B', 16) + struct.pack('>H', wl)
+        # else:
+        #     # Value low enough to use Angstrom units (setting resolution = 1A = 0.1 nm)
+        #     if self._current_units != 'A':
+        #         self.set_units('A')
+        #     wl_angstrom = int(wl * 10)
+        #     cmd = struct.pack('>B', 16) + struct.pack('>H', wl_angstrom)
+        # self.send(cmd)
 
     def scan(self, wl1, wl2):
         """ Scan monochromator from wl1 to wl2 as rate "determined by Spectral ProductsEED command". """
@@ -82,16 +89,18 @@ class CM112(Monochromator):
     def set_step_size(self, step_size):
         """ Set step size in position [nm]. """
         # Max step size for each unit is based on one byte of SIGNED data -> range = 2**8 / 2 = 128
-        if step_size < 12.8:
-            if self._current_units != 'A': self.set_units('A')
-            step_size_angstrom = int(step_size * 10)
-            cmd = struct.pack('>B', 55) + struct.pack('>b', step_size_angstrom)  # note: lower case b here since we want a signed step_size byte (sign indicates direction)
-        elif step_size < 128:
-            if self._current_units != 'nm': self.set_units('nm')
-            cmd = struct.pack('>B', 55) + struct.pack('>b', step_size)
+        # if step_size < 12.8:
+            # if self._current_units != 'A':
+                # self.set_units('A')
+                # time.sleep(1)
+            # step_size_angstrom = int(step_size * 10)
+            # cmd = struct.pack('>B', 55) + struct.pack('>b', step_size_angstrom)  # note: lower case b here since we want a signed step_size byte (sign indicates direction)
+        if step_size < 128:
+            if self._current_units != 'nm':
+                self.set_units('nm')
+            cmd = struct.pack('>B', 55) + struct.pack('>b', int(step_size))
         else:
             raise ValueError('Step size should be less than 128 nm. Overriding this is possible by sending size in micron units - needs this code to be updated.')
-
         self.send(cmd)
 
     def set_units(self, units):
@@ -107,6 +116,7 @@ class CM112(Monochromator):
 
         cmd = struct.pack('>2B', 50, units_byte)
         self.send(cmd)
+        time.sleep(0.2)  # Allow time for this to be accepted
 
     def get_position(self):
         """ Return current monochromator position in wavelengths [nm]. """

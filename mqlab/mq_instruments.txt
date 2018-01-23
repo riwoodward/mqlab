@@ -7,8 +7,7 @@
 
 [YokogawaAQ6376]
 device_type = osa
-# Eng. Dept: ip_address = 10.46.25.201
-ip_address = 10.204.41.224
+ip_address = 10.46.25.250
 port = 10001
 terminating_char = LF
 gpib_address = 1
@@ -22,7 +21,7 @@ gpib_address = 2
 device_type = osa
 gpib_address = 3
 
-[HP6653A]
+[HP6653A_1]
 device_type = ps
 gpib_address = 4
 
@@ -38,6 +37,10 @@ gpib_address = 6
 device_type = pm
 serial_number = P1003109
 
+[ThorLabsPM100D]
+device_type = pm
+serial_number = P0015852
+
 [TektronixTDS794D]
 device_type = osc
 gpib_address = 7
@@ -45,6 +48,11 @@ gpib_address = 7
 [Newport5600]
 device_type = ps
 gpib_address = 8
+
+[HP6653A_2]
+device_type = ps
+gpib_address = 9
+
 
 [APEPulseCheck]
 device_type = pdd

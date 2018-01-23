@@ -1272,7 +1272,7 @@ class MainWindow(QMainWindow):
 
         sensitivitySettingsLayout = QFormLayout()
         self.sensitivityMode = QComboBox()
-        self.sensitivityMode.addItems(['Auto Gain (Software)', 'Auto Gain (Hardware)'])
+        self.sensitivityMode.addItems(['Auto Gain (Software)', 'Auto Gain (Hardware)', 'Fixed'])
         self.sensitivityMin = QComboBox(detectorFrame)
         self.sensitivityMin.addItems([str(i) for i in range(26)])
         self.sensitivityMin.setCurrentIndex(9)
@@ -1302,16 +1302,24 @@ class MainWindow(QMainWindow):
 
         stepLayout = QHBoxLayout()
         self.sweepWlStep = QLineEdit(self.scanFrame)
-        stepLayout.addWidget(QLabel('Step (nm):   '))
+        self.spectrometerDelay = QLineEdit(self.scanFrame)
+        self.spectrometerDelay.setText('1')
+        self.spectrometerLogLin = QComboBox(self.scanFrame)
+        self.spectrometerLogLin.addItems(['Lin', 'Log'])
+
+        stepLayout.addWidget(QLabel('Step (nm):'))
         stepLayout.addWidget(self.sweepWlStep)
+        stepLayout.addWidget(QLabel('Wait (s):'))
+        stepLayout.addWidget(self.spectrometerDelay)
+        stepLayout.addWidget(self.spectrometerLogLin)
 
         btnRow1 = QHBoxLayout()
         btnRow2 = QHBoxLayout()
 
-        self.startScanBtn = self.createRibbonBtn(parent=self.grabTab, onPushMethod=self.onPushSpectrometerStart, text='  Start', icon_filepath=self.resources_folder+'icon_start.png', icon_size=30, btn_type='pushbutton')
-        self.stopScanBtn = self.createRibbonBtn(parent=self.grabTab, onPushMethod=self.onPushSpectrometerStop, text='  Stop', icon_filepath=self.resources_folder+'icon_stop.png', icon_size=30, btn_type='pushbutton')
+        self.startScanBtn = self.createRibbonBtn(parent=self.grabTab, onPushMethod=self.onPushSpectrometerStart, text='  Start', icon_filepath=self.resources_folder + 'icon_start.png', icon_size=30, btn_type='pushbutton')
+        self.stopScanBtn = self.createRibbonBtn(parent=self.grabTab, onPushMethod=self.onPushSpectrometerStop, text='  Stop', icon_filepath=self.resources_folder + 'icon_stop.png', icon_size=30, btn_type='pushbutton')
         self.stopScanBtn.setEnabled(False)
-        saveScanBtn = self.createRibbonBtn(parent=self.grabTab, onPushMethod=self.onPushSaveSpectrometerDataBtn, text='    Save Data', icon_filepath=self.resources_folder+'icon_save.png', icon_size=30, btn_type='pushbutton')
+        saveScanBtn = self.createRibbonBtn(parent=self.grabTab, onPushMethod=self.onPushSaveSpectrometerDataBtn, text='    Save Data', icon_filepath=self.resources_folder + 'icon_save.png', icon_size=30, btn_type='pushbutton')
 
         scanFrameLayout.addLayout(scanRangeLayout)
         scanFrameLayout.addLayout(stepLayout)
@@ -1342,15 +1350,25 @@ class MainWindow(QMainWindow):
         This uses the monochromator set_position command. For scanning, the in-built step command is used.
         """
         if goto_wl is not None:
+            print('Going to {}'.format(goto_wl))
             self.monochromator.set_position(goto_wl)
             self.monochromator.wl = goto_wl
 
         elif step is not None:
             new_wl = np.round(self.monochromator.wl + step, 2)  # Use round to avoid floating point errors -> we won't get below 0.01 nm accuracy anyway
+            print('Stepping by {}, from {} to {}'.format(step, self.monochromator.wl, new_wl))
             self.monochromator.set_position(new_wl)
             self.monochromator.wl = new_wl
 
         self.monochromatorWlBox.setText(str(self.monochromator.wl))
+
+        time.sleep(0.5)
+        actual_wl = self.monochromator.get_position()
+        self.setStatusBar('Monochromator moved to: {:.1f} nm'.format(actual_wl))
+
+        # Due to weird bugs with CMI monochromator, double check the position it's moved to is correct
+        if not np.allclose(actual_wl, goto_wl):
+            self.show_error_dialog('Monochromator error: Device has decided to move to a different wavelength instead (hardware bug?). Try resending the command after a few seconds.')
 
     def onPushConnectDetectorBtn(self):
         """ Establish connection with lock-in detection system. """
@@ -1417,6 +1435,8 @@ class MainWindow(QMainWindow):
             elif 'Hardware' in self.sensitivityMode.currentText():
                 self.lockin.auto_gain()
                 voltages.append(self.lockin.get_x_voltage())
+            elif 'Fixed' in self.sensitivityMode.currentText():
+                voltages.append(self.lockin.get_x_voltage())
 
             # Plot data
             self.plots[self.tab_idx].ax.plot(np.arange(len(voltages)), np.array(voltages), color='C1')
@@ -1455,22 +1475,22 @@ class MainWindow(QMainWindow):
     def runScanner(self, wl1, wl2, wl_step):
         # Prepare data ararys
         self.wls = np.arange(wl1, wl2 + wl_step, wl_step)
-        self.intensities = np.zeros(len(self.wls), 'float')
+        self.intensities = np.ones(len(self.wls), 'float') * 1e-10  # Set null value as essentially 0
 
         # Set up monochromator for scanning
         self.monochromator.set_step_size(wl_step)
+        time.sleep(1)
         self.monochromator.set_position(self.wls[0])
-        time.sleep(0.5)
-
-        delay_between_measurements = 0  # self.lockin.get_time_constant()
+        time.sleep(1)
 
         start_time = time.time()
 
-        for i, wl in enumerate(self.wls):
-            # Move and read data
-            self.monochromator.step()
+        delay_between_measurements = float(self.spectrometerDelay.text())
 
-            # Wait for everything to settle (todo: investigate whether this is needed / what magnitude)
+        y_scale = self.spectrometerLogLin.currentText()
+
+        for i, wl in enumerate(self.wls):
+            # Wait for everything to settle
             time.sleep(delay_between_measurements)
 
             if 'Software' in self.sensitivityMode.currentText():
@@ -1478,28 +1498,43 @@ class MainWindow(QMainWindow):
             elif 'Hardware' in self.sensitivityMode.currentText():
                 self.lockin.auto_gain()
                 self.intensities[i] = self.lockin.get_x_voltage()
+            elif 'Fixed' in self.sensitivityMode.currentText():
+                self.intensities[i] = self.lockin.get_x_voltage()
 
             # Neatening up data for presentation
-            # Take all ungrabbed data points at equal to minimum of those grabbed so far
-            self.intensities[i + 1:] = self.intensities[:i + 1].min()
+            if y_scale == 'Lin':
+                y_label = 'Intensity (a.u.)'
+            else:
+                y_label = 'Intensity (a.u. dB)'
 
-            # Log for plottingTab
+            # Save to class (for saving OSA data, we always save in dB for consistency)
+            # Question, since it's a voltage measurement, log conversion should technically be 20*log(val)? Doesn't matter as a.u. anyway.
             self.intensities_dB = np.clip(10 * np.log10(abs(self.intensities)), -100.0, 100.0)  # Catch infs
-
-            # Save to class
             self.plots[self.tab_idx].grabbed_data = np.column_stack([self.wls * 1e-9, self.intensities_dB])
 
             # Plot data
             self.plots[self.tab_idx].ax.cla()
-            self.plots[self.tab_idx].ax.plot(self.wls, self.intensities_dB, '-o', color='C0')
+            self.plots[self.tab_idx].ax.plot(self.wls, self.intensities, '-o', color='C0')
             self.plots[self.tab_idx].ax.set_xlabel('Wavelength (nm)')
-            self.plots[self.tab_idx].ax.set_ylabel('Intensity (a.u. dB)')
+            self.plots[self.tab_idx].ax.set_ylabel(y_label)
             self.update_canvas(copy_to_clipboard=False)
 
             # Exit the FOR loop if the thread is to be aborted
             if self.scanner_thread.wants_abort:
                 print('Scan aborting...')
                 break
+
+            # Double check first and last data point correspond to correct actual monochromator wl position (due to weird CMI bug)
+            if ((wl == self.wls[0]) or (wl == self.wls[-1])):
+                actual_wl = self.monochromator.get_position()
+                if not np.allclose(actual_wl, wl):
+                    self.show_error_dialog('Monochromator error: device actual position and expected wavelength are out of sync (hardware bug?). Retry the scan (if bug persists, try a slightly different step size or range)')
+                    break
+                else:
+                    print('Monochromator and software are synced correctly.')
+
+            # Move to next step
+            self.monochromator.step()
 
         elapsed_time = time.time() - start_time
         self.setStatusBar('Scan completed (duration = {0:.1f} s)'.format(elapsed_time))
@@ -1762,7 +1797,7 @@ class MainWindow(QMainWindow):
         # To improve stability, add a small delay between stage moving back and forwards
         scan_range_mm = scan_range * ut.c_mm_ps
         wait_delay = scan_range_mm / stage_speed * 1.1  # add 10% for safety
-        print(f'Wait delay = {wait_delay}')
+        print('Wait delay = {}'.format(wait_delay))
 
         while True:
             # Oscillage 1 cycle of the stage
@@ -1863,7 +1898,6 @@ class MainWindow(QMainWindow):
         self.plots[self.tab_idx].figure.canvas.draw()
 
         if copy_to_clipboard:
-            print('coping to clip')
             self.copy_canvas()
 
         if not disable_autosave:

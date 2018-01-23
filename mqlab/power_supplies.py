@@ -48,6 +48,9 @@ class HP6653A(PowerSupply):
         """ Enable output. """
         self.send('OUTP ON')
 
+    # Create virtual entities for current and voltage so they can be simply accessed as variables (e.g. self.current=1) rather than using setters / getters
+    current = property(get_current, set_current)
+    voltage = property(get_voltage, set_voltage)
 
 class Newport5600(PowerSupply):
     """ Interfacing code for Newport 5600 diode driver. """
@@ -78,6 +81,13 @@ class Newport5600(PowerSupply):
     def set_output_on(self):
         """ Enable output. """
         self.send('LASer:OUTput 1')
+        self._turn_on_time = time.time()  # Used for recording time power has been on (for ZBLAN fibre laser monitoring)
+
+    def print_on_time(self):
+        elapsed_time = time.time() - self._turn_on_time
+        m, s = divmod(elapsed_time, 60)
+        formatted_time = '{:d}m {:0.1f}s'.format(int(m), s)
+        print('Elapsed time since turn on: {}'.format(formatted_time))
 
     def current_kick(self, low_value, high_value, delay=1):
         """ Set current to low value for a given delay, then jump back up to high value - useful for kick-starting mode-locking! """
@@ -93,6 +103,6 @@ class Newport5600(PowerSupply):
             self.set_current(high_value)
             time.sleep(delay_between_kicks)
 
-    # Create virtual entities for current and votlage so they can be simply accessed as variables (e.g. self.current=1) rather than using setters / getters
+    # Create virtual entities for current and voltage so they can be simply accessed as variables (e.g. self.current=1) rather than using setters / getters
     current = property(get_current, set_current)
     voltage = property(get_voltage, set_voltage)

@@ -32,7 +32,7 @@ class Instrument(object):
         Otherwise, these must be entered manually.
 
         Args:
-            interface (str): connection type, either: 'ethernet', 'gpib-ethernet', 'serial'
+            interface (str): connection type, either: 'ethernet', 'gpib-ethernet', 'serial' or 'usb'
             Either, for automatic config:
                 mq_id (str): ID of MQ lab instrument, as defined in the config file, "mq_instruments.txt"
             Or, for a manual ethernet config:
@@ -80,7 +80,7 @@ class Instrument(object):
                 host_ip_address = '10.204.43.240'
             else:
                 # Engineering Dept.
-                host_ip_address = '10.46.25.51'
+                host_ip_address = '10.46.25.190'
             self.connection = GPIBOverEthernetConnection(gpib_address=gpib_address, host_ip_address=host_ip_address)
 
         elif self._interface == 'gpib-usb':
@@ -287,7 +287,7 @@ class SerialConnection(object):
         # If command is already formatted specifically for the device, just encode the terminating string and add to message
         else:
             message = command + self.terminating_char.encode('utf-8')
-        self.serial.write(command)
+        self.serial.write(message)
 
     def read(self):
         """ Read data from device. """

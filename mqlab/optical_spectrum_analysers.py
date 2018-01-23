@@ -2,6 +2,7 @@
 from __future__ import division, print_function, absolute_import, unicode_literals
 from builtins import ascii, bytes, chr, dict, filter, hex, input, int, map, next, oct, open, pow, range, round, str, super, zip
 
+import time
 import numpy as np
 
 from mqlab.connections import Instrument
@@ -84,3 +85,38 @@ class AndoAQ6317B(OpticalSpectrumAnalyser):
         its = np.array([float(x) for x in data.split(',')[1:]])  # Ignore first value in dataset, which indicates dataset length
         its = np.clip(its, -90, 1e3)  # Clip off spuriously low values that sometimes appear as artefacts
         return wls, its
+
+    def set_wl_range(self, lower_wl, upper_wl):
+        """ Set wl range on OSA as lower_wl to upper_wl [nm] """
+        self.send('STAWL{:.2f}'.format(lower_wl))  # Send value to OSA in nm
+        self.send('STPWL{:.2f}'.format(upper_wl))
+
+    def alignment_mode(self, centre_wl, dB_per_div=10):
+        # Save current view
+        self._last_start_wl = self.query('STAWL?', dtype=float)
+        self._last_stop_wl = self.query('STPWL?', dtype=float)
+        self._last_ref_level = self.query('REFL?', dtype=float)
+
+        # Set centre and span
+        self.send('CTRWL{:.2f},SPAN0'.format(centre_wl))  # Send value to OSA in nm
+
+        # Get current level to position level on screen usefully
+        x, y = self.grab()
+        current_level = y.mean()
+
+        time.sleep(1)
+        self.set_dB_per_div(dB_per_div)
+        self.set_ref_level(current_level + 10)
+
+    def leave_alignment_mode(self):
+        self.set_wl_range(self._last_start_wl, self._last_stop_wl)
+        self.set_ref_level(self._last_ref_level)
+        self.set_dB_per_div(10)
+
+    def set_ref_level(self, ref_level_dB):
+        """ Set reference level [dB]. """
+        self.send('REFL{:.1f}'.format(ref_level_dB))
+
+    def set_dB_per_div(self, dB_per_div):
+        """ Set reference scale dB per div. (range: 0.1 to 10) """
+        self.send('LSCL{:.1f}'.format(dB_per_div))

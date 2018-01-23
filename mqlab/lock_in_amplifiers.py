@@ -67,6 +67,14 @@ class SR830(LockInAmplifier):
         """ Return voltage Y [V]. """
         return self.query('OUTP?2', dtype=float)
 
+    def get_amplitude(self):
+        """ Return amplitude. """
+        return self.query('OUTP?3', dtype=float)
+
+    def get_phase(self):
+        """ Return phase [deg]. """
+        return self.query('OUTP?4', dtype=float)
+
     def get_ref_freq(self):
         """ Return reference frequency [Hz]. """
         return self.query('FREQ?', dtype=float)
@@ -132,7 +140,7 @@ class SR830(LockInAmplifier):
                 if self.sensitivity_idx == 26:
                     print('Warning, max possible range (i.e. sensitivity) exceeded. Reduce signal level.')
                 else:
-                    self.set_sensitivity(self.sensitivity_idx + 5)  # ... decrease sensitivity to next value (edit: jump 5 for speed)
+                    self.set_sensitivity(self.sensitivity_idx + 2)  # ... decrease sensitivity to next value (edit: jump 2 for speed)
                     if not self.silent: print('Fix is: S %s = %0.2e' % (self.sensitivity_idx, self.SENSITIVITIES[self.sensitivity_idx]))
                     time.sleep(self.manual_autorange_settle_time)  # Let device settle with new sensitivity setting
 
