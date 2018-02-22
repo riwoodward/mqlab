@@ -5,6 +5,12 @@
 # Express terminating char as CR (carraige return, \r), LF (line feed - i.e. new line, \n) or both in required order (e.g. CRLF)
 # Host IP Addresses for LAN boxes are: 10.204.43.240 (hearing hub) and 10.46.25.51 (engineering dept.)
 
+[GPIBEthernetServers]
+device_type = server
+hearing_hub_ip_address = 10.204.43.240
+engineering_I_ip_address = 10.46.25.190
+engineering_II_ip_address = 10.46.25.195
+
 [YokogawaAQ6376]
 device_type = osa
 ip_address = 10.46.25.250

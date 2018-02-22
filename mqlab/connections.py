@@ -75,12 +75,15 @@ class Instrument(object):
             if gpib_address is None:
                 raise ValueError('For a GPIB-over-ethernet device connection, gpib_address must be specified. Ensure correct device type was specified and all parameters are given.')
             # Get GPIB-LAN gateway box IP address (different box for each lab)
-            if 'hub' in gpib_location.lower():
-                # Hearing Hub
-                host_ip_address = '10.204.43.240'
-            else:
-                # Engineering Dept.
-                host_ip_address = '10.46.25.190'
+            config_filepath = mq_instruments_config_filepath
+            config = ConfigParser()
+            config.read(config_filepath)
+            if 'hub' in gpib_location.lower():  # Hearing Hub Lab
+                host_ip_address = config['GPIBEthernetServers'].get('hearing_hub_ip_address')
+            elif 'ii' in gpib_location.lower():  # Engineering Dept. 2-bench lab
+                host_ip_address = config['GPIBEthernetServers'].get('engineering_II_ip_address')
+            else:  # Engineering Dept. 1-bench lab
+                host_ip_address = config['GPIBEthernetServers'].get('engineering_I_ip_address')
             self.connection = GPIBOverEthernetConnection(gpib_address=gpib_address, host_ip_address=host_ip_address)
 
         elif self._interface == 'gpib-usb':

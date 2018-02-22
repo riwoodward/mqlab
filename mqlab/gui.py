@@ -313,7 +313,7 @@ class MainWindow(QMainWindow):
         self.connectionType = QComboBox()
         self.connectionType.addItems(['GPIB-Ethernet', 'GPIB-USB', 'Ethernet'])
         self.location = QComboBox()
-        self.location.addItems(['Hearing Hub', 'Engineering'])
+        self.location.addItems(['Hearing Hub', 'Engineering I', 'Engineering II'])
         grabSettingsLayout.addRow('Mode:', self.grabMode)
         grabSettingsLayout.addRow('Conn.:', self.connectionType)
         grabSettingsLayout.addRow('Lab:', self.location)
