@@ -1378,6 +1378,7 @@ class MainWindow(QMainWindow):
             kwargs = dict()
             kwargs['mq_id'] = 'SR830'
             kwargs['interface'] = 'gpib-ethernet'
+            kwargs['gpib_location'] = self.location.currentText()
 
             self.lockin = mq_lockin.SR830(sensitivity_min_idx=int(self.sensitivityMin.currentText()), **kwargs)
             ident = self.lockin.get_idn()
@@ -1431,12 +1432,12 @@ class MainWindow(QMainWindow):
         self.plots[self.tab_idx].ax.cla()  # Clear axis
         while (not self.monitor_thread.wants_abort):
             if 'Software' in self.sensitivityMode.currentText():
-                voltages.append(self.lockin.get_x_voltage_with_manual_autoranging())
+                voltages.append(self.lockin.get_amplitude_with_manual_autoranging())
             elif 'Hardware' in self.sensitivityMode.currentText():
                 self.lockin.auto_gain()
-                voltages.append(self.lockin.get_x_voltage())
+                voltages.append(self.lockin.get_amplitude())
             elif 'Fixed' in self.sensitivityMode.currentText():
-                voltages.append(self.lockin.get_x_voltage())
+                voltages.append(self.lockin.get_amplitude())
 
             # Plot data
             self.plots[self.tab_idx].ax.plot(np.arange(len(voltages)), np.array(voltages), color='C1')
@@ -1494,12 +1495,12 @@ class MainWindow(QMainWindow):
             time.sleep(delay_between_measurements)
 
             if 'Software' in self.sensitivityMode.currentText():
-                self.intensities[i] = self.lockin.get_x_voltage_with_manual_autoranging()
+                self.intensities[i] = self.lockin.get_amplitude_with_manual_autoranging()
             elif 'Hardware' in self.sensitivityMode.currentText():
                 self.lockin.auto_gain()
-                self.intensities[i] = self.lockin.get_x_voltage()
+                self.intensities[i] = self.lockin.get_amplitude()
             elif 'Fixed' in self.sensitivityMode.currentText():
-                self.intensities[i] = self.lockin.get_x_voltage()
+                self.intensities[i] = self.lockin.get_amplitude()
 
             # Neatening up data for presentation
             if y_scale == 'Lin':
@@ -1752,10 +1753,11 @@ class MainWindow(QMainWindow):
         """ Start an autocorrelation measurement. """
         # Connect to oscilloscope
         osc_id = self.acOscCmb.currentText()
+        gpib_location = self.location.currentText()
         if 'HP54616C' in osc_id:
-            osc = mq_osc.HP54616C(interface='gpib-ethernet', mq_id=osc_id)
+            osc = mq_osc.HP54616C(interface='gpib-ethernet', mq_id=osc_id, gpib_location=gpib_location)
         elif 'TektronixTDS794D' in osc_id:
-            osc = mq_osc.TektronixTDS794D(interface='gpib-ethernet', mq_id=osc_id)
+            osc = mq_osc.TektronixTDS794D(interface='gpib-ethernet', mq_id=osc_id, gpib_location=gpib_location)
         self.clear_plot()
         if self.acOscCh1.isChecked():
             osc_channel = '1'

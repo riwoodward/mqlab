@@ -126,32 +126,36 @@ class SR830(LockInAmplifier):
         self.send('OFLT{}'.format(idx))
         self.sensitivity_idx = idx
 
-    def get_x_voltage_with_manual_autoranging(self):
-        """ Read X voltage on device, including our own "fast autoranging" function to optimise sensitivity and avoid overload. """
+    def get_amplitude_with_manual_autoranging(self):
+        """ Read device amplitude, including our own "fast autoranging" function to optimise sensitivity and avoid overload. """
         acceptable_reading = False
 
         while not acceptable_reading:
             sensitivity_volts = self.SENSITIVITIES[self.sensitivity_idx]
-            voltage = self.get_x_voltage()
+            voltage = self.get_amplitude()
 
             # If overloaded
             if voltage > (1.09 * sensitivity_volts):
-                if not self.silent: print('Overload (sens %s = %0.2e, volts = %0.2e)...' % (self.sensitivity_idx, sensitivity_volts, voltage))
+                if not self.silent:
+                    print('Overload (sens %s = %0.2e, volts = %0.2e)...' % (self.sensitivity_idx, sensitivity_volts, voltage))
                 if self.sensitivity_idx == 26:
                     print('Warning, max possible range (i.e. sensitivity) exceeded. Reduce signal level.')
                 else:
-                    self.set_sensitivity(self.sensitivity_idx + 2)  # ... decrease sensitivity to next value (edit: jump 2 for speed)
-                    if not self.silent: print('Fix is: S %s = %0.2e' % (self.sensitivity_idx, self.SENSITIVITIES[self.sensitivity_idx]))
+                    self.set_sensitivity(self.sensitivity_idx + 2)  # ... decrease sensitivity to next value (jump 2 for speed)
+                    if not self.silent:
+                        print('Fix is: S %s = %0.2e' % (self.sensitivity_idx, self.SENSITIVITIES[self.sensitivity_idx]))
                     time.sleep(self.manual_autorange_settle_time)  # Let device settle with new sensitivity setting
 
             # If underloaded (i.e. signal less than sensitivity of the next possible sensitivity bin), but not at min sensitivity
             elif ((voltage < self.SENSITIVITIES[self.sensitivity_idx - 1]) and (self.sensitivity_idx > self.sensitivity_min_idx)):
-                if not self.silent: print('Underload (sens %s = %0.2e, volts = %0.2e)...' % (self.sensitivity_idx, sensitivity_volts, voltage))
+                if not self.silent:
+                    print('Underload (sens %s = %0.2e, volts = %0.2e)...' % (self.sensitivity_idx, sensitivity_volts, voltage))
                 # Find the sensitivity value which is just above the measured signal
                 sensitivity_idx = np.where(self.SENSITIVITIES > voltage)[0][0]
                 sensitivity_idx = max(sensitivity_idx, self.sensitivity_min_idx)  # Don't let it go below the minimum sensitivity
                 self.set_sensitivity(sensitivity_idx)
-                if not self.silent: print('Fix is: S %s = %0.2e' % (self.sensitivity_idx, self.SENSITIVITIES[self.sensitivity_idx]))
+                if not self.silent:
+                    print('Fix is: S %s = %0.2e' % (self.sensitivity_idx, self.SENSITIVITIES[self.sensitivity_idx]))
                 time.sleep(self.manual_autorange_settle_time)  # # Let device settle with new sensitivity setting
 
             # If no over/underloading, then return the value
