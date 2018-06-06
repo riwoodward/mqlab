@@ -26,7 +26,7 @@ from scipy.integrate import trapz
 from glob import glob
 from collections import OrderedDict
 from threading import Thread
-import socket, webbrowser
+import socket
 from configparser import ConfigParser
 from PyQt5 import QtCore, Qt
 from PyQt5.QtCore import QObject, QThread, QSize, pyqtSlot, pyqtSignal
@@ -36,6 +36,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 # Import Vxi11 Exception for helpful error catching (if user has grabbing library installed)
 from vxi11.vxi11 import Vxi11Exception
+
+# Set plot styling
+matplotlib.rcParams['font.size'] = 16
 
 
 class MainWindow(QMainWindow):
@@ -311,7 +314,7 @@ class MainWindow(QMainWindow):
         self.grabMode = QComboBox()
         self.grabMode.addItems(['Grab', 'Live View'])
         self.connectionType = QComboBox()
-        self.connectionType.addItems(['GPIB-Ethernet', 'GPIB-USB', 'Ethernet'])
+        self.connectionType.addItems(['GPIB-Ethernet', 'GPIB-USB', 'Ethernet', 'USB'])
         self.location = QComboBox()
         self.location.addItems(['Hearing Hub', 'Engineering I', 'Engineering II'])
         grabSettingsLayout.addRow('Mode:', self.grabMode)
@@ -732,6 +735,8 @@ class MainWindow(QMainWindow):
             osc = mq_osc.HP54616C(**kwargs)
         elif 'TektronixTDS794D' in kwargs['mq_id']:
             osc = mq_osc.TektronixTDS794D(**kwargs)
+        elif 'TektronixTDS2012B' in kwargs['mq_id']:
+            osc = mq_osc.TektronixTDS2012B(**kwargs)
         else:
             raise ValueError('Oscilloscope not in database. Check code / mqinstruments folder.')
 
@@ -840,13 +845,13 @@ class MainWindow(QMainWindow):
 
         if self.plot_scale_log_or_lin() == 'log':
             self.plots[self.tab_idx].ax.set_ylabel('Spectral Intensity (a.u. dB)')
-            if min(y_low) < -120: self.plots[self.tab_idx].ax.set_ylim(-90, max(y_high)+5) # Don't show spriously low values (e.g. -200 dB) which are unphysical but sometimes are grabbed
+            if min(y_low) < -120: self.plots[self.tab_idx].ax.set_ylim(-90, max(y_high) + 5) # Don't show spriously low values (e.g. -200 dB) which are unphysical but sometimes are grabbed
         else:
             self.plots[self.tab_idx].ax.set_ylabel('Spectral Intensity (a.u.)')
-        self.plots[self.tab_idx].ax.set_xlabel('Wavelength (' + ut.eng_prefix(data[:,0], self.data_source)[1] + 'm)')
-        self.plots[self.tab_idx].ax.set_xlim([min(x_short),max(x_long)])
+        self.plots[self.tab_idx].ax.set_xlabel('Wavelength (' + ut.eng_prefix(data[:, 0], self.data_source)[1] + 'm)')
+        self.plots[self.tab_idx].ax.set_xlim([min(x_short), max(x_long)])
         if not 'Data Grab' in file_path:
-            leg = self.plots[self.tab_idx].ax.legend(loc='best', prop={'size':10}, framealpha=0.5)
+            leg = self.plots[self.tab_idx].ax.legend(loc='best', framealpha=0.5)
         self.update_canvas()
 
     def plot_temporal_trace(self, source='osc'):
@@ -911,7 +916,7 @@ class MainWindow(QMainWindow):
 
         self.peak_threshold = (data[:, 1].max() - data[:, 1].min()) / 2 + data[:, 1].min()  # Set a threshold for pulse train interpreetation
         if 'Data Grab' not in file_path:
-            leg = self.plots[self.tab_idx].ax.legend(loc='best', prop={'size':10}, framealpha=0.5)
+            leg = self.plots[self.tab_idx].ax.legend(loc='best', framealpha=0.5)
         self.update_canvas()
 
     def plot_electrical_spectrum(self):
@@ -939,7 +944,7 @@ class MainWindow(QMainWindow):
         self.plots[self.tab_idx].ax.set_xlabel('Frequency (%sHz)' % str(ut.eng_prefix(data[:,0])[1]))
 
         if 'Data Grab' not in file_path:
-            leg = self.plots[self.tab_idx].ax.legend(loc='best', prop={'size':10}, framealpha=0.5)
+            leg = self.plots[self.tab_idx].ax.legend(loc='best', framealpha=0.5)
         self.update_canvas()
 
     def preprocess_data(self, file_path):
@@ -953,7 +958,7 @@ class MainWindow(QMainWindow):
                 data = ut.read_data(file_path, self.data_source).copy()  # Use .copy() to break link to original data
             except:
                 self.show_warning_dialog('Data file not recognised. Check file is valid and retry.')
-                return np.ones((100,2)), 'Plotting Error'
+                return np.ones((100, 2)), 'Plotting Error'
             self.setStatusBar('Data plotted from %s' % file_path)
             data_label = os.path.splitext(os.path.split(file_path)[-1])[0]
 
@@ -968,11 +973,11 @@ class MainWindow(QMainWindow):
                 if data[:, 1].min() < 0:
                     data[:, 1] += abs(data[:, 1].min())
                     print('Data shifted to positive y values in order to set scale to log for visualisation')
-                data[:, 1] = np.log10(data[:, 1]) # Ignores scaling (i.e. the dB values are arbitrary)
+                data[:, 1] = np.log10(data[:, 1])  # Ignores scaling (i.e. the dB values are arbitrary)
 
         # Apply normalisation if requested
         if self.normalisePlot.isChecked():
-            data[:,1] = ut.normalise(data[:,1], scale=self.plot_scale_log_or_lin())
+            data[:, 1] = ut.normalise(data[:, 1], scale=self.plot_scale_log_or_lin())
 
         # Enable fitting and analysis controls
         self.fittingBox.setEnabled(True)
@@ -1078,11 +1083,12 @@ class MainWindow(QMainWindow):
                 pulse_separation = np.mean(spacings)
                 separation_variation = 100 * (max(abs(spacings-pulse_separation))) / pulse_separation  # fluctuations in pulse spacing
                 unit_prefix = units[0]
-                rep_rate = 1 / (pulse_separation * 10**(ut.unit_dict_return_exp(unit_prefix)))
-                annotation = 'Pulse spacing = %.2f %ss (+/- %.2f %%) -> %.2f %sHz' % (pulse_separation, unit_prefix, separation_variation, ut.eng_prefix(rep_rate)[0], ut.eng_prefix(rep_rate)[1])
+                multiplier = ut.unit_dict_return_exp(unit_prefix)
+                rep_rate = 1 / (pulse_separation * 10**multiplier)
+                annotation = 'Pulse spacing = %.3f %ss (+/- %.2f %%) -> %.2f %sHz' % (pulse_separation, unit_prefix, separation_variation, ut.eng_prefix(rep_rate)[0], ut.eng_prefix(rep_rate)[1])
                 self.annotate_canvas(annotation, color)
                 self.update_canvas()
-            except:
+            except Exception:
                 import traceback
                 traceback.print_exc()
                 self.setStatusBar('ERROR: Automated pulse train analysis failed - check code or perform manually.')
@@ -1148,7 +1154,7 @@ class MainWindow(QMainWindow):
         # Plot formatting
         self.plots[self.tab_idx].ax.set_xlabel('Wavelength (nm)')
         self.plots[self.tab_idx].ax.set_ylabel('Transmission (%)')
-        leg = self.plots[self.tab_idx].ax.legend(loc='best', prop={'size': 10}, framealpha=0.5)
+        leg = self.plots[self.tab_idx].ax.legend(loc='best', framealpha=0.5)
         self.plots[self.tab_idx].ax.set_ylim([-5, 105])
         self.plots[self.tab_idx].ax.grid(True)
         self.update_canvas()
@@ -1681,8 +1687,6 @@ class MainWindow(QMainWindow):
         self.acScanFrame = QFrame()
         self.acScanFrame.setEnabled(False)
 
-
-
         scanFrameLayout = QVBoxLayout(self.acScanFrame)
 
         acScanSettingsLayout = QFormLayout()
@@ -1754,10 +1758,14 @@ class MainWindow(QMainWindow):
         # Connect to oscilloscope
         osc_id = self.acOscCmb.currentText()
         gpib_location = self.location.currentText()
+        interface = self.connectionType.currentText()
         if 'HP54616C' in osc_id:
-            osc = mq_osc.HP54616C(interface='gpib-ethernet', mq_id=osc_id, gpib_location=gpib_location)
+            osc = mq_osc.HP54616C(interface=interface, mq_id=osc_id, gpib_location=gpib_location)
         elif 'TektronixTDS794D' in osc_id:
-            osc = mq_osc.TektronixTDS794D(interface='gpib-ethernet', mq_id=osc_id, gpib_location=gpib_location)
+            osc = mq_osc.TektronixTDS794D(interface=interface, mq_id=osc_id, gpib_location=gpib_location)
+        elif 'TektronixTDS2012B' in osc_id:
+            osc = mq_osc.TektronixTDS2012B(interface=interface, mq_id=osc_id, gpib_location=gpib_location)
+
         self.clear_plot()
         if self.acOscCh1.isChecked():
             osc_channel = '1'
@@ -1800,6 +1808,10 @@ class MainWindow(QMainWindow):
         scan_range_mm = scan_range * ut.c_mm_ps
         wait_delay = scan_range_mm / stage_speed * 1.1  # add 10% for safety
         print('Wait delay = {}'.format(wait_delay))
+
+        # Assume initial position is zero delay pos, so first move back by half a delay
+        self.zstage.move_by(-scan_range_mm / 2)
+        time.sleep(wait_delay * 0.75)
 
         while True:
             # Oscillage 1 cycle of the stage
@@ -1847,8 +1859,12 @@ class MainWindow(QMainWindow):
 
                 self.update_canvas(copy_to_clipboard=False, disable_autosave=True)
 
+            # Assume initial position is zero delay pos, so put stage back there after complete scan
+            self.zstage.move_by(+scan_range_mm / 2)
+
             # Exit the FOR loop if the thread is to be aborted
             if self.ac_scanner_thread.wants_abort:
+                print('Killing AC thread NOW.')
                 break
 
     def onPushSaveAutocorrelatorDataBtn(self):
@@ -1911,7 +1927,11 @@ class MainWindow(QMainWindow):
                         self.plots[self.tab_idx].figure.savefig(save_png_path[:-4])
                 else:
                     self.save_file_name = self.save_file_name.replace('.', ',')  # Replace full stops with commas, since full stops aren't permitted in file names saved by Python
-                    self.plots[self.tab_idx].figure.savefig(os.path.dirname(self.filesList.item(0).text()) + '/' + self.save_file_name)
+                    save_filepath = os.path.dirname(self.filesList.item(0).text()) + '/' + self.save_file_name
+                    print('Saving to:')
+                    print(save_filepath)
+                    print('**')
+                    self.plots[self.tab_idx].figure.savefig(save_filepath)
 
         # Enable span selector
         if span_selector_enable:
@@ -1919,7 +1939,7 @@ class MainWindow(QMainWindow):
 
     def annotate_canvas(self, msg, color, update_global_i=True, update_canvas_afterwards=True):
         """ Adds the argument msg to the canvas at a convenient position. """
-        self.plots[self.tab_idx].ax.text(0.02, (0.85 - (self.global_i * 0.09)), msg, color=color, transform=self.plots[self.tab_idx].ax.transAxes, size=12)
+        self.plots[self.tab_idx].ax.text(0.02, (0.85 - (self.global_i * 0.09)), msg, color=color, transform=self.plots[self.tab_idx].ax.transAxes)
         if update_global_i:
             self.global_i = self.global_i + 1
 
@@ -1988,20 +2008,20 @@ class MainWindow(QMainWindow):
         msg.setWindowTitle('Error')
         msg.exec_()
 
-    # def except_hook(self, cls, exception, traceback):
-    #     """ Reimplementation of general exception handler (http://stackoverflow.com/questions/35596250/pyqt5-gui-crashes-when-qtreewidget-is-cleared).
-    #     When an error occurs, an abbreviated message is shown in a warning box to alert the user, while the full traceback exception print-out is shown in the terminal. """
-    #     self.show_error_dialog('Unexpected Error: %s\n%s\n\nSee terminal for full error trace.' % (cls, exception))
-    #     sys.__excepthook__(cls, exception, traceback)
+    def except_hook(self, cls, exception, traceback):
+        """ Reimplementation of general exception handler (http://stackoverflow.com/questions/35596250/pyqt5-gui-crashes-when-qtreewidget-is-cleared).
+        When an error occurs, an abbreviated message is shown in a warning box to alert the user, while the full traceback exception print-out is shown in the terminal. """
+        self.show_error_dialog('Unexpected Error: %s\n%s\n\nSee terminal for full error trace.' % (cls, exception))
+        sys.__excepthook__(cls, exception, traceback)
 
 
 if __name__ == '__main__':
-    # In PyQt v5.5 an unhandled Python exception will result in a call to Qt's qFatal() function. By default this will call abort() and the application will terminate
-    # Override this to force the error to print and allow user to carry on in the GUI
-    # sys.excepthook = except_hook
-
     app = QApplication(sys.argv)
     mainWin = MainWindow()
-    # sys.excepthook = mainWin.except_hook
+
+    # In PyQt v5.5 an unhandled Python exception will result in a call to Qt's qFatal() function. By default this will call abort() and the application will terminate
+    # Override this to force the error to print and allow user to carry on in the GUI
+    sys.excepthook = mainWin.except_hook
+
     mainWin.show()
     sys.exit(app.exec_())

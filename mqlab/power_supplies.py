@@ -8,7 +8,7 @@ from mqlab.connections import Instrument
 
 class PowerSupply(Instrument):
 
-    def __init__(self, max_current_A=1000, **kwargs):
+    def __init__(self, max_current_A, **kwargs):
         """ Init for power supply including a safety routine to limit accidental setting of erroneously high currents. """
 
         # Store current limit
@@ -34,11 +34,11 @@ class HP6653A(PowerSupply):
 
     def get_current(self):
         """ Return current [A]. """
-        return float(self.query('CURR?'))
+        return self.query('CURR?', dtype=float)
 
     def get_voltage(self):
         """ Return voltage [V]. """
-        return float(self.query('VOLT?'))
+        return self.query('VOLT?', dtype=float)
 
     def set_output_off(self):
         """ Disable output. """
@@ -51,6 +51,7 @@ class HP6653A(PowerSupply):
     # Create virtual entities for current and voltage so they can be simply accessed as variables (e.g. self.current=1) rather than using setters / getters
     current = property(get_current, set_current)
     voltage = property(get_voltage, set_voltage)
+
 
 class Newport5600(PowerSupply):
     """ Interfacing code for Newport 5600 diode driver. """

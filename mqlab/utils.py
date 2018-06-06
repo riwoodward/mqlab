@@ -142,7 +142,7 @@ unit_dict = {
     -15: 'f',     # femto
     -12: 'p',     # pico
     -9: 'n',      # nano
-    -6: r'$\mu$',  # micro
+    -6: u'\xb5',  # micro
     -3: 'm',      # mili
     -2: 'c',      # centi
     -1: 'd',      # deci

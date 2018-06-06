@@ -37,7 +37,7 @@ class Instrument(object):
                 mq_id (str): ID of MQ lab instrument, as defined in the config file, "mq_instruments.txt"
             Or, for a manual ethernet config:
                 ip_address (str): ip address of device
-                port (int): port to use for connection
+                port (int): port to use for connection (optional... if using raw sockets, leave blank to use the vxi11 protocol)
             Or, for a manual GPIB config:
                 gpib_address (int): address of device
                 gpib_location (str): 'hearing_hub' or 'engineering', so the GPIB host IP can be automatically obtained
@@ -67,9 +67,14 @@ class Instrument(object):
 
         # Instantiate connections.
         if self._interface == 'ethernet':
-            if (ip_address is None) or (port is None):
-                raise ValueError('For an ethernet device connection, ip_address and port must be specified. Ensure correct device type was specified and all parameters are given.')
-            self.connection = EthernetConnection(ip_address=ip_address, port=port, terminating_char=terminating_char, timeout=timeout)
+            if ip_address is None:
+                raise ValueError('For an ethernet device connection, ip_address must be specified. Ensure correct device type was specified and all parameters are given.')
+
+            # If a port is specified, open a socket directly to it. Otherwise, assume it's a VXI11 device.
+            if port is None:
+                self.connection = VXI11Connection(host_ip_address=ip_address)
+            else:
+                self.connection = EthernetSocketConnection(ip_address=ip_address, port=port, terminating_char=terminating_char, timeout=timeout)
 
         elif self._interface == 'gpib-ethernet':
             if gpib_address is None:
@@ -160,11 +165,11 @@ class Instrument(object):
         return response
 
 
-class EthernetConnection(object):
+class EthernetSocketConnection(object):
     """ Base ethernet connection class. """
 
     def __init__(self, ip_address, port, terminating_char='', timeout=3):
-        """ Constructor for an ethernet port connected instrument.
+        """ Constructor for an ethernet port connected instrument using sockets.
 
         Args:
             ip (str): device ip_address (ideally, make this static in the router config)
@@ -216,17 +221,22 @@ class EthernetConnection(object):
         return response
 
 
-class GPIBOverEthernetConnection(object):
-    """ Connection protocols for GPIB devices though a LAN/GPIB gateway. """
+class VXI11Connection(object):
+    """ Connection protocols for using the VXI11 library. """
 
-    def __init__(self, gpib_address, host_ip_address):
+    def __init__(self, host_ip_address, gpib_address=None):
         """ Constructor for an ethernet port connected instrument.
 
         Args:
-            gpib_address (int): GPIB address set in instrument
             host_ip_address (str): IP of GPIB-LAN gateway, e.g. '10.204.43.240' for hearing hub network
+            (optional) gpib_address (int): GPIB address set in instrument (leave blank for direct connection to host)
         """
-        self.vxi11 = VXI11Instrument(host=host_ip_address, name="gpib0,%i" % gpib_address)
+        if gpib_address is not None:
+            self.vxi11 = VXI11Instrument(host=host_ip_address, name="gpib0,%i" % gpib_address)
+            self._is_gpib_device = True
+        else:
+            self.vxi11 = VXI11Instrument(host=host_ip_address)
+            self._is_gpib_device = False
 
     def get_status_byte(self):
         """ Return status byte as array of 8 boolean values.
@@ -247,10 +257,16 @@ class GPIBOverEthernetConnection(object):
         """ Read data from device. """
         response = self.vxi11.read_raw()
 
-        # Set VXI11 device back in LOCAL mode, ready for user interaction
-        self.vxi11.local()
+        # Set VXI11 device back in LOCAL mode, ready for user interaction (for GPIB devices only)
+        if self._is_gpib_device:
+            self.vxi11.local()
 
         return response
+
+
+class GPIBOverEthernetConnection(VXI11Connection):
+    """ Connection protocols for GPIB devices though a LAN/GPIB gateway. The gateway is set to use VXI11 protocol. """
+    pass
 
 
 class SerialConnection(object):
@@ -307,7 +323,7 @@ class USBConnection(object):
 
     TODO: New Installation Idea:
         Install USB backend (for linux, libusb probably already installed, for Windows, download libusb binaries [http://libusb.info/] and copy
-        the appropraite libusb-1.0.dll file into C:/Windows/System32 folder.
+        the appropriate libusb-1.0.dll file into C:/Windows/System32 folder.
     """
 
     def __init__(self, serial_number):
@@ -335,4 +351,4 @@ class USBConnection(object):
 
     def read(self):
         """ Read data from device. """
-        return self.usb.read()
+        return self.usb.read_raw()

@@ -1,6 +1,7 @@
 # Configuration file for convenient access to connection settings for MQ lab instruments
-# For device type, select from: 'osa', 'osc', 'esa', 'pdd', 'ps', 'pm' 'lockin' which represent optical spectrum analysers,
-# oscilloscopes, electrical spectrum analysers, pulse diagnostic devices (autocorrelators, streak cams etc.), power supplies, power meters and lock-in amps respectively.
+# For device type, select from: 'osa', 'osc', 'esa', 'pdd', 'ps', 'pm', 'lockin', 'fg' which represent optical spectrum analysers,
+# oscilloscopes, electrical spectrum analysers, pulse diagnostic devices (autocorrelators, streak cams etc.), power supplies, power meters,
+# lock-in amps and function generators respectively.
 #
 # Express terminating char as CR (carraige return, \r), LF (line feed - i.e. new line, \n) or both in required order (e.g. CRLF)
 # Host IP Addresses for LAN boxes are: 10.204.43.240 (hearing hub) and 10.46.25.51 (engineering dept.)
@@ -39,7 +40,11 @@ gpib_address = 5
 device_type = osc
 gpib_address = 6
 
-[ThorLabsPM100A]
+[ThorLabsPM100A_1]
+device_type = pm
+serial_number = P1003700
+
+[ThorLabsPM100A_2]
 device_type = pm
 serial_number = P1003109
 
@@ -47,9 +52,17 @@ serial_number = P1003109
 device_type = pm
 serial_number = P0015852
 
+[TektronixTDS2012B]
+device_type = osc
+serial_number = C058604
+
 [TektronixTDS794D]
 device_type = osc
 gpib_address = 7
+
+[TektronixAFG3022C]
+device_type = fg
+ip_address = 10.46.28.144
 
 [Newport5600]
 device_type = ps
@@ -58,7 +71,6 @@ gpib_address = 8
 [HP6653A_2]
 device_type = ps
 gpib_address = 9
-
 
 [APEPulseCheck]
 device_type = pdd
