@@ -17,7 +17,7 @@ class KnobGui(QWidget):
         #######################
         # Device Configuration
         from mqlab.power_supplies import HP6653A
-        self.device = HP6653A(interface='gpib-ethernet', gpib_address=4)
+        self.device = HP6653A(interface='gpib-ethernet', gpib_address=4, max_current_A=5)
         self.value = self.device.get_current()
         self.limits = (0, 9.5)
         #######################

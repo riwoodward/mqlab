@@ -1,4 +1,4 @@
-""" Definition of automated optomechanics interfaces. NOT FINISHED OR TESTED. """
+""" Definition of automated optomechanics interfaces. """
 from __future__ import division, print_function, absolute_import, unicode_literals
 from builtins import ascii, bytes, chr, dict, filter, hex, input, int, map, next, oct, open, pow, range, round, str, super, zip
 
@@ -21,17 +21,18 @@ import zaber.serial as zaber
 class ThorlabsK10CR1(object):
     """ Control interface for Thorlabs K10CR1 rotation mount.
 
-    Thorlabs provided APT / Kinesis Dlls seemed buggy and unreliable, so this is based
-    on direct communication with FTDI USB chip using hex codes defined in APT reference manual.
-    The init route is the same as that used in Thorlabs Kinesis GUI, as determined
+    The Thorlabs provided APT / Kinesis Dlls seemed buggy and unreliable, so this is based on
+    direct communication with the underlying FTDI USB chip using hex codes defined in APT reference manual.
+    The init routine is the same as that used in Thorlabs Kinesis GUI, as determined
     by USB packet sniffing (Wireshark).
+
+    Note: this code is not finished or tested!
 
     References:
         Inspired by comment at: https://github.com/qpit/thorlabs_apt/issues/3
     """
     # Device takes a short while to prepare data from reading once command received
     # 0.02 s seems to work well
-    # COMMS_DELAY = 0.02
     COMMS_DELAY = 0.05
 
     # Encoder information (mapping counts to real-world values), angular distance units are in degrees
@@ -262,5 +263,6 @@ class ZaberLinearTranslationStage(zaber.BinaryDevice):
         self.send_no_reply(42, self._speed_microsteps_from_mm_s(speed))
 
     def set_acceleration_to_max(self):
-        """ From manual: If acceleration is set to 0, it is as if acceleration is set to (512*R-1). Effectively acceleration is turned off and the device will start moving at the target speed immediately. """
+        """ From manual: If acceleration is set to 0, it is as if acceleration is set to (512*R-1).
+        Effectively acceleration is turned off and the device will start moving at the target speed immediately. """
         self.send_no_reply(43, 0)

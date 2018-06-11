@@ -127,7 +127,7 @@ def read_data(file_path, data_source):
         # Ignore the baselines and just use transmission data
         data = np.column_stack([all_data[:, 4], all_data[:, 5]])
         # Ignore noise
-        data[:, 1][data[:, 1]<0] = 0
+        data[:, 1][data[:, 1] < 0] = 0
     else:
         raise ValueError('Data source not recognised.')
 
@@ -492,8 +492,10 @@ def fit(x, y, fit_type, p0=0, sigma=None):
         if 'poly' in fit_type:
             coeff = np.polyfit(x, y, fit_type.split('-')[-1])
             pcov = 0  # No covariance matrix computed
-        elif 'sech2' in fit_type: coeff, pcov = curve_fit(sech2, x, y, p0, sigma)
-        elif 'gaussian' in fit_type: coeff, pcov = curve_fit(gaussian, x, y, p0, sigma)
+        elif 'sech2' in fit_type:
+            coeff, pcov = curve_fit(sech2, x, y, p0, sigma)
+        elif 'gaussian' in fit_type:
+            coeff, pcov = curve_fit(gaussian, x, y, p0, sigma)
     else:
         coeff, pcov = curve_fit(fit_type, x, y, p0, sigma)  # Return co-effs for fit and covariance matrix
     return coeff, pcov
@@ -527,8 +529,10 @@ def fitted(x, y, fit_type, p0=None, sigma=None):
         if 'poly' in fit_type:
             p = np.poly1d(coeff)
             y_fit = p(x_fit)
-        elif 'sech2' in fit_type: y_fit = sech2(x_fit, *coeff)
-        elif 'gaussian' in fit_type: y_fit = gaussian(x_fit, *coeff)
+        elif 'sech2' in fit_type:
+            y_fit = sech2(x_fit, *coeff)
+        elif 'gaussian' in fit_type:
+            y_fit = gaussian(x_fit, *coeff)
     else:
         y_fit = fit_type(x_fit, *coeff)
 

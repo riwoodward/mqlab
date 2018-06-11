@@ -16,6 +16,7 @@ class Monochromator(Instrument):
 class CM112(Monochromator):
     """ Control interface for CVI Digikrom CM112 1/8m double monochromator. """
     # Device requires hexcode interfacing. We use struct module for packing/unpacking bytes objects: '>' indicates big endian convention, 'B' = unsigned one-byte character, 'H' = unsigned two-byte character
+    # Note: This device is a bit buggy, e.g. it seems to forget which unit mode it's set at / gets lost in wavelength position. Use with care & check results! TODO: investigate this.
 
     def __init__(self, com_port):
         """ Initialise serial connection, but modify the initialisation command to set the correct default connection properties. """
@@ -74,12 +75,14 @@ class CM112(Monochromator):
         # Since an int value must be sent, this limits both the resolution and max value that can be set
         if max(wl1, wl2) > (2**16 / 10):
             # Value too high to send in Angstrom units, so send in nm (setting resolution = 1 nm)
-            if self._current_units != 'nm': self.set_units('nm')
+            if self._current_units != 'nm':
+                self.set_units('nm')
             # Combine the one-byte goto command with two-byte wl position
             cmd = struct.pack('>B', 12) + struct.pack('>H', wl1) + struct.pack('>H', wl2)
         else:
             # Value low enough to use Angstrom units (setting resolution = 1A = 0.1 nm)
-            if self._current_units != 'A': self.set_units('A')
+            if self._current_units != 'A':
+                self.set_units('A')
             wl1_angstrom = int(wl1 * 10)
             wl2_angstrom = int(wl2 * 10)
             cmd = struct.pack('>B', 12) + struct.pack('>H', wl1_angstrom) + struct.pack('>H', wl2_angstrom)

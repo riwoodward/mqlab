@@ -244,15 +244,12 @@ class MainWindow(QMainWindow):
         self.spectrometerTab = QWidget(self.ribbon)
         self.autocorrelatorTab = QWidget(self.ribbon)
 
-
         # Assign custom names to these objects, so the stylesheet can uniquely set their background (without forced inheritance affecting all children)
         self.grabTab.setObjectName('tabContentsBackground')
         self.plottingTab.setObjectName('tabContentsBackground')
         self.advancedTab.setObjectName('tabContentsBackground')
         self.spectrometerTab.setObjectName('tabContentsBackground')
         self.autocorrelatorTab.setObjectName('tabContentsBackground')
-
-
 
         # Create interface for each tab
         self.grabTabUI()
@@ -549,7 +546,7 @@ class MainWindow(QMainWindow):
         """ Create pop-up menu for right click options in the files list. """
         self.listMenu= QMenu()
         menu_item = self.listMenu.addAction("Remove Item")
-        if self.filesList.count() == 0: menu_item.setDisabled(True) # Disable if no items in QListWidget
+        if self.filesList.count() == 0: menu_item.setDisabled(True)  # Disable if no items in QListWidget
         menu_item.triggered.connect(self.removeClickedFile)
         parentPosition = self.filesList.mapToGlobal(QtCore.QPoint(0, 0))
         self.listMenu.move(parentPosition + QPos)
@@ -1009,7 +1006,7 @@ class MainWindow(QMainWindow):
             self.setStatusBar('Data saved to %s' % savefile_path)
 
             # Add the recently assigned file name to the plot title
-            save_file_name = savefile_path.replace('\\', '/') # Default paths to linux style (works on Windows too, but not vice versa)
+            save_file_name = savefile_path.replace('\\', '/')  # Default paths to linux style (works on Windows too, but not vice versa)
             display_filepath = save_file_name.split('/')[-2] + '/' + save_file_name.split('/')[-1]
 
             savefile_path_img = savefile_path[:-4].replace('.', ',') + '.dat'  # Strip off dots from file name so it allows saving an image
@@ -1056,8 +1053,10 @@ class MainWindow(QMainWindow):
 
             # If an autocorrelation trace, show deconvolved width
             if '(AC)' in fit_type:
-                if 'sech2' in fit_type: decon_factor = 0.647
-                elif 'gaussian' in fit_type: decon_factor = 0.707
+                if 'sech2' in fit_type:
+                    decon_factor = 0.647
+                elif 'gaussian' in fit_type:
+                    decon_factor = 0.707
                 decon_fwhm = fwhm_interpolated * decon_factor
                 annotation = '%s FWHM:\n%0.3f %s (AC) -> %0.3f %s (Deconvolved)' % (fit_type, fwhm_interpolated, units, decon_fwhm, units)
             else:
@@ -1081,7 +1080,7 @@ class MainWindow(QMainWindow):
                 peaks = ut.peak_detect(data[:, 1], self.peak_threshold, data[:, 0])
                 spacings = np.ediff1d(peaks[:, 0])
                 pulse_separation = np.mean(spacings)
-                separation_variation = 100 * (max(abs(spacings-pulse_separation))) / pulse_separation  # fluctuations in pulse spacing
+                separation_variation = 100 * (max(abs(spacings - pulse_separation))) / pulse_separation  # fluctuations in pulse spacing
                 unit_prefix = units[0]
                 multiplier = ut.unit_dict_return_exp(unit_prefix)
                 rep_rate = 1 / (pulse_separation * 10**multiplier)
@@ -1577,7 +1576,7 @@ class MainWindow(QMainWindow):
             display_filepath = save_file_name.split('/')[-2] + '/' + save_file_name.split('/')[-1]
 
             savefile_path_img = savefile_path[:-4].replace('.', ',') + '.dat'  # Strip off dots from file name so it allows saving an image
-            self.plots[self.tab_idx].ax.set_title(display_filepath )
+            self.plots[self.tab_idx].ax.set_title(display_filepath)
             self.update_canvas(self, save_png_path=savefile_path_img)
 
     ##################
@@ -1682,7 +1681,6 @@ class MainWindow(QMainWindow):
         detectorFrameLayout.addWidget(acOscFrame)
         detectorFrameLayout.addLayout(detectorSettingsLayout)
         detectorFrameLayout.addWidget(acMoveStageNoGrabBtn)
-
 
         # SCAN SETTINGS #
         self.acScanFrame = QFrame()

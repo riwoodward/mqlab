@@ -13,7 +13,7 @@ class Autocorrelator(Instrument):
 
 
 class APEPulseCheck(Autocorrelator):
-    """ Communication with APE Autocorrelator. Due to a bug (/"feature") of the APE software, to use the device remotely you must install (AND RUN CONTINUOUSLY) their pulseLink software and set the TCP/IP port for the device (e.g. using the one hard-coded below: 51123). It seems this is not saved when the device is power cycled and hence, must be entered each time. """
+    """ Communication with APE Autocorrelator. Due to a bug (/"feature") of the APE software, it seems that to use the device remotely you must install (AND RUN CONTINUOUSLY) their pulseLink software and set the TCP/IP port for the device (e.g. using the one hard-coded below: 51123). It seems this is not saved when the device is power cycled and hence, must be entered each time. """
 
     def __init__(self):
         """ Instantiate communication, with has to be using TCP/IP ethernet protocols over the USB connection. """
@@ -45,7 +45,6 @@ class APEPulseCheck(Autocorrelator):
             return data
         # Data is returned in little endian double float format, interlacing x and y data.
         # Thus, we must first decode and split it up.
-        print(len(data))
         data_decoded = self._decode_binary_block(data, dtype='<d')
         delays = data_decoded[0::2] * 1e-12
         ys = data_decoded[1::2]

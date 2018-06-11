@@ -14,7 +14,7 @@ class PowerMeter(Instrument):
 class ThorlabsPM100(PowerMeter):
     """ Interface for communication with ThorLabs Power Meters over USB.
 
-    TODO: check. Notes:
+    Notes:
         Drivers must be installed before use (see ThorLabs website).
     """
 
@@ -32,8 +32,7 @@ class ThorlabsPM100(PowerMeter):
 
 
 class Newport842PE(PowerMeter):
-    """ Control interface for CVI Digikrom CM112 1/8m double monochromator. """
-    # Device requires hexcode interfacing. We use struct module for packing/unpacking bytes objects: '>' indicates big endian convention, 'B' = unsigned one-byte character, 'H' = unsigned two-byte character
+    """ Control interface for Newport 842PE power meter. """
 
     def __init__(self, com_port):
         """ Initialise serial connection, but modify the initialisation command to set the correct default connection properties. """

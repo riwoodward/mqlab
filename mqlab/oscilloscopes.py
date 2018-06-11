@@ -24,11 +24,11 @@ class HP54616C(Oscilloscope):
 
         # Converts the necessary preamble values from strings into numbers
         numdatapoints = int(preamble[2])  # The number of data points
-        xincr = float(preamble[4])  # The x increment
-        xoffset = float(preamble[5])  # The x offset (left side of screen)
-        yincr = float(preamble[7])  # The y increment
-        yzero = float(preamble[8])  # The y offset
-        yoffset = float(preamble[9])  # The y value at the origin
+        xincr = float(preamble[4])        # The x increment
+        xoffset = float(preamble[5])      # The x offset (left side of screen)
+        yincr = float(preamble[7])        # The y increment
+        yzero = float(preamble[8])        # The y offset
+        yoffset = float(preamble[9])      # The y value at the origin
 
         # Read trace data (returned in 1 byte integer format, then scaled appropriately)
         data_block = self.query(':WAV:SOUR CHAN{};FORM BYTE;DATA?'.format(channel))
@@ -71,7 +71,8 @@ class TektronixTDS794D(Oscilloscope):
 class TektronixTDS2012B(Oscilloscope):
     """ Tektronix TDS2012B oscilloscope.
 
-    The interfacing is similar to the Tektronix TDS794D, but seemingly subtly different wrt. the WAVFrm command, hence needing to fire preamble and curve commands separately. """
+    The interfacing is similar to the Tektronix TDS794D, but seemingly subtly different wrt. the WAVFrm command, hence needing to fire preamble and curve commands separately.
+    """
 
     def grab(self, channel='1'):
         """ Return times [s] and amplitudes [V] data currently displayed on device. """

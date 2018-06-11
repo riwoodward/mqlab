@@ -26,7 +26,7 @@ class YokogawaAQ6376(OpticalSpectrumAnalyser):
         """ Log into the device to initiate remote connection. """
         self.connection.open_socket()
         response = self.query('OPEN "anonymous"')  # Defaults to anonymous user
-        response = self.query('', dtype=str)                  # Defaults to no password
+        response = self.query('', dtype=str)       # Defaults to no password
         if response != 'ready':
             raise Exception('Connection Error: User authentication failed. Check username/password and retry.')
 

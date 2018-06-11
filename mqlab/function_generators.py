@@ -38,7 +38,7 @@ class GoochHousegoAOTFDriver(object):
     """ Communication with Gooch & Housego AOTF (drivers from G&H must be installed first).
 
     Notes:
-        They provide an AOTFlibrary DLL file which is 32 bit and doesn't seem to permit communication using ctypes interfacing (even when using 32-bit Python).
+        G&H provide an AOTFlibrary DLL file which is 32 bit and doesn't seem to permit communication using ctypes interfacing (even when using 32-bit Python).
         Therefore, as an alternative, use the provided AOTFcmd command line app for communication.
     """
 
