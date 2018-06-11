@@ -14,7 +14,7 @@ try:
     import ftd2xx
     from ftd2xx.defines import BITS_8, STOP_BITS_1, PARITY_NONE, FLOW_RTS_CTS
 except Exception:
-    print('FTD2xx (THORLABS motor controller) import failed. Install Kinesis software and check FTD2xx DLL is installed correctly.')
+    print('WARNING: FTD2xx (THORLABS motor controller) import failed. Install Kinesis software and check FTD2xx DLL is installed correctly (if you need to use the rotation mounts).')
 import zaber.serial as zaber
 
 

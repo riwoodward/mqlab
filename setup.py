@@ -16,7 +16,7 @@ def readme():
 
 setup(name='mqlab',
       version='0.1',
-      description='Instrument control code for MQ Mid-IR Photonics Group lab devices.',
+      description='Instrument control code for MQ Mid-IR Fibre Lasers Group.',
       long_description=readme(),
       url='https://github.com/riwoodward/mqlab',
       author='Robert I. Woodward',

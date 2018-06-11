@@ -607,10 +607,10 @@ class MainWindow(QMainWindow):
         self.plotAdvancedBtns.setEnabled(False)  # Initially, disable plotting buttons until files selected
 
         ## NETWORK SETTINGS BUTTONS ##
-        settingBtns = QGroupBox('GPIB Server Tools')
+        settingBtns = QGroupBox('Settings')
         settingBtnsLayout = QVBoxLayout(settingBtns)
 
-        viewDevicesBtn = self.createRibbonBtn(parent=self.advancedTab, onPushMethod=self.onPushViewGpibAddressesBtn, text='  View GPIB\n  Addresses', icon_filepath=self.resources_folder + 'icon_network.png', icon_size=30, icon_pos='left', btn_type='toolbutton')
+        viewDevicesBtn = self.createRibbonBtn(parent=self.advancedTab, onPushMethod=self.onPushViewGpibAddressesBtn, text='Configure\n Devices', icon_filepath=self.resources_folder + 'icon_network.png', icon_size=30, icon_pos='left', btn_type='toolbutton')
 
         settingBtnsLayout.addWidget(viewDevicesBtn)
 
@@ -1197,8 +1197,9 @@ class MainWindow(QMainWindow):
 
 
     def onPushViewGpibAddressesBtn(self):
-        """ Print the GPIB addresses of each device onto the canvas. Implemented simply using matplotlib"""
-        pass
+        """ Show mq_instruments.txt file. """
+        os.system(mq_instruments_config_filepath)
+
 
     ################
     # SPECTROMETER #
