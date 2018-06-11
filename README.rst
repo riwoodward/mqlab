@@ -28,6 +28,7 @@ Usage
 The instrument classes can be imported and used in custom code as required (see docstrings for examples).
 
 For quick access to core data grabbing, plotting and analysis tools in a GUI, run::
+
     $ python gui.py
 
 
@@ -44,5 +45,5 @@ General Code Structure
 * ``mq_instruments.txt`` : configuration file containing default settings for MQ lab instruments
 
 
-.. image:: https://raw.githubusercontent.com/riwoodward/mqlab/master/mqlab/resources/gui_screenshot.png
+.. image:: https://raw.githubusercontent.com/riwoodward/mqlab/master/mqlab/resources/gui_screenshot.jpg
         :width: 50%
