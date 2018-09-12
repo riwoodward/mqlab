@@ -3,6 +3,7 @@ from __future__ import division, print_function, absolute_import, unicode_litera
 from builtins import ascii, bytes, chr, dict, filter, hex, input, int, map, next, oct, open, pow, range, round, str, super, zip
 
 import time
+import numpy as np
 from mqlab.connections import Instrument
 
 
@@ -16,6 +17,22 @@ class PowerSupply(Instrument):
 
         # Init main MQ instrument class
         super().__init__(**kwargs)
+
+    def ramp_down(self):
+        """ Slowly (over a few seconds) ramp the power down, e.g. to protect diodes. """
+        self._set_current_before_ramp = self.get_current()
+        for current in np.linspace(self._set_current_before_ramp, 0, 6):
+            self.set_current(current)
+            time.sleep(0.25)
+
+    def ramp_back_up(self):
+        """ Ramp back up to current before ramp_down was fired. """
+        if not hasattr(self, '_set_current_before_ramp'):
+            raise ValueError('This command only works after a ramp_down command execution.')
+
+        for current in np.linspace(0, self._set_current_before_ramp, 6):
+            self.set_current(current)
+            time.sleep(0.25)
 
 
 class HP6653A(PowerSupply):

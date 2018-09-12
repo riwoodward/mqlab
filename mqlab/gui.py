@@ -53,6 +53,7 @@ class MainWindow(QMainWindow):
         self.live_view_active = False  # Status of Live View functionality
         self.x_max = 0  # Custom span (default to null)
         self.x_min = 0
+        self.savefig_dpi = 50
 
         # Save the absolute resources folder location (in Unix "/" separator format)
         self.resources_folder = os.path.dirname(os.path.realpath(__file__)) + '/resources/'
@@ -1923,14 +1924,14 @@ class MainWindow(QMainWindow):
                 if 'Data Grab' in self.filesList.item(0).text():
                     if save_png_path:
                         self.save_file_name = self.save_file_name.replace('.', ',')  # Replace full stops with commas, since full stops aren't permitted in file names saved by Python
-                        self.plots[self.tab_idx].figure.savefig(save_png_path[:-4])
+                        self.plots[self.tab_idx].figure.savefig(save_png_path[:-4], dpi=self.savefig_dpi)
                 else:
                     self.save_file_name = self.save_file_name.replace('.', ',')  # Replace full stops with commas, since full stops aren't permitted in file names saved by Python
                     save_filepath = os.path.dirname(self.filesList.item(0).text()) + '/' + self.save_file_name
                     print('Saving to:')
                     print(save_filepath)
                     print('**')
-                    self.plots[self.tab_idx].figure.savefig(save_filepath)
+                    self.plots[self.tab_idx].figure.savefig(save_filepath, dpi=self.savefig_dpi)
 
         # Enable span selector
         if span_selector_enable:
@@ -1953,7 +1954,7 @@ class MainWindow(QMainWindow):
         if not self.live_view_active:
             # Qt wants us to save the figure to disk before copying to clipboard
             temp_img_filepath = 'temp.png'
-            self.plots[self.tab_idx].figure.savefig(temp_img_filepath)
+            self.plots[self.tab_idx].figure.savefig(temp_img_filepath, dpi=self.savefig_dpi)
             tempImg = QImage(temp_img_filepath)
             self.cb = QApplication.clipboard()
             self.cb.setImage(tempImg)

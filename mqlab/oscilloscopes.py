@@ -13,6 +13,14 @@ class Oscilloscope(Instrument):
 
 class HP54616C(Oscilloscope):
 
+    def run(self):
+        """ Start the oscilloscope running - same as pressing the RUN button on the front panel. """
+        self.send('RUN')
+
+    def stop(self):
+        """ Stop the oscilloscope running - same as pressing the STOP button on the front panel. """
+        self.send('STOP')
+
     def grab(self, channel='1'):
         """ Return times [s] and amplitudes [V] data currently displayed on device. """
         if channel not in ('1', '2'):
@@ -74,13 +82,28 @@ class TektronixTDS2012B(Oscilloscope):
     The interfacing is similar to the Tektronix TDS794D, but seemingly subtly different wrt. the WAVFrm command, hence needing to fire preamble and curve commands separately.
     """
 
+    def run(self):
+        """ Start the oscilloscope running - same as pressing the RUN button on the front panel. """
+        self.send('ACQuire:STATE RUN')
+
+    def stop(self):
+        """ Stop the oscilloscope running - same as pressing the STOP button on the front panel. """
+        self.send('ACQuire:STATE STOP')
+
     def grab(self, channel='1'):
-        """ Return times [s] and amplitudes [V] data currently displayed on device. """
-        if channel not in ('1', '2'):
-            raise ValueError("Trace must be '1' or '2'")
+        """ Return times [s] and amplitudes [V] data currently displayed on device.
+
+        Args:
+            channel : '1' or '2' or 'math'
+        """
+        if channel not in ('1', '2', 'math'):
+            raise ValueError("Trace must be '1' or '2' or 'math'")
 
         # Select chosen waveform channel, 16-bit (2 byte) per data point, and binary data format (signed integer, MSB sent first)
-        self.send('DATa:SOUrce CH{};:DATa:WIDth 2;:DATA:ENCdg RIBinary'.format(channel))
+        if channel == 'math':
+            self.send('DATa:SOUrce MATH;:DATa:WIDth 2;:DATA:ENCdg RIBinary'.format(channel))
+        else:
+            self.send('DATa:SOUrce CH{};:DATa:WIDth 2;:DATA:ENCdg RIBinary'.format(channel))
 
         # Get preamble and data
         preamble = self.query('WFMPRe?')
