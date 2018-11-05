@@ -1,7 +1,4 @@
 """ GUI for grabbing data and plotting / analysis using MQ instruments. """
-from __future__ import division, print_function, absolute_import, unicode_literals
-from builtins import ascii, bytes, chr, dict, filter, hex, input, int, map, next, oct, open, pow, range, round, str, super, zip
-
 # Import interface code for MQ instruments
 import mqlab.optical_spectrum_analysers as mq_osa
 import mqlab.oscilloscopes as mq_osc
@@ -13,9 +10,6 @@ import mqlab.autocorrelators as mq_ac
 
 import mqlab.utils as ut
 from mqlab.connections import mq_instruments_config_filepath
-# Force QStrings to be handled as strings (only required for Py2; automatic in Py3)
-import sip
-sip.setapi('QString', 2)
 # General Imports
 import numpy as np
 import matplotlib

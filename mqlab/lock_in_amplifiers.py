@@ -1,7 +1,4 @@
 """ Definition of lock-in amplifier interfacing commands. """
-from __future__ import division, print_function, absolute_import, unicode_literals
-from builtins import ascii, bytes, chr, dict, filter, hex, input, int, map, next, oct, open, pow, range, round, str, super, zip
-
 import time
 import numpy as np
 

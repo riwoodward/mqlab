@@ -5,9 +5,6 @@ Requirements:
     for Ethernet: socket (installed by default)
     for GPIB: python-vxi11
 """
-from __future__ import division, print_function, absolute_import, unicode_literals
-from builtins import ascii, bytes, chr, dict, filter, hex, input, int, map, next, oct, open, pow, range, round, str, super, zip
-
 import os
 import socket
 import numpy as np

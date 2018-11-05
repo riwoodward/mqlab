@@ -3,7 +3,7 @@
 # oscilloscopes, electrical spectrum analysers, pulse diagnostic devices (autocorrelators, streak cams etc.), power supplies, power meters,
 # lock-in amps and function generators respectively.
 #
-# Express terminating char as CR (carraige return, \r), LF (line feed - i.e. new line, \n) or both in required order (e.g. CRLF)
+# Express terminating char as CR (carriage return, \r), LF (line feed - i.e. new line, \n) or both in required order (e.g. CRLF)
 
 [GPIBEthernetServers]
 device_type = server

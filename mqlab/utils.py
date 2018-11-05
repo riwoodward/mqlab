@@ -1,7 +1,4 @@
 """ Utils for data grabbing, manipulation and analysis. """
-from __future__ import division, print_function, absolute_import, unicode_literals
-from builtins import ascii, bytes, chr, dict, filter, hex, input, int, map, next, oct, open, pow, range, round, str, super, zip
-
 import serial
 import os
 import numpy as np
@@ -10,15 +7,6 @@ from glob import glob
 from scipy.optimize import curve_fit
 from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.constants import c
-
-###############################
-# PYTHON 2 TO 3 COMPATIBILITY #
-###############################
-# Enable checking if objects are strings (http://stackoverflow.com/questions/11301138/how-to-check-if-variable-is-string-with-python-2-and-3-compatibility)
-try:
-    basestring  # Py2
-except NameError:
-    basestring = str  # Py3
 
 ####################
 # USEFUL CONSTANTS #
@@ -488,7 +476,7 @@ def fit(x, y, fit_type, p0=0, sigma=None):
         p0_y_offset = 0.5
         p0 = [p0_peak, p0_width, p0_x_offset, p0_y_offset]
 
-    if isinstance(fit_type, basestring):  # If fit_type is a string
+    if isinstance(fit_type, str):  # If fit_type is a string
         if 'poly' in fit_type:
             coeff = np.polyfit(x, y, fit_type.split('-')[-1])
             pcov = 0  # No covariance matrix computed
@@ -525,7 +513,7 @@ def fitted(x, y, fit_type, p0=None, sigma=None):
     # Populate new dense arrays with the fitted function (for plotting accurately)
     x_fit = np.linspace(min(x), max(x), 1e4)
 
-    if isinstance(fit_type, basestring):  # If fit_type is a string
+    if isinstance(fit_type, str):  # If fit_type is a string
         if 'poly' in fit_type:
             p = np.poly1d(coeff)
             y_fit = p(x_fit)
@@ -558,3 +546,48 @@ def pickle_object(source_object, target_file_path):
 def unpickle_object(file_name):
     """ Returns a previously pickled object from file_name. """
     return Pickle.load(open(file_name, "rb"))
+
+
+###########################
+# SPECTROMETER PROCESSING #
+###########################
+
+def wl_from_wn(wn):
+    """ Convert wn [cm^-1] to wavelength [nm]. """
+    return 1e9 / (wn * 100)
+
+
+def get_data_chem_dept_ftir(filepath):
+    """
+    Returns
+        wls (nm), transmission (%)
+    """
+    x, y = np.loadtxt(filepath, delimiter=',', unpack=True)
+    x = wl_from_wn(x)
+    x = x[::-1]
+    y = y[::-1]
+    return x, y
+
+
+def get_data_cary_spectrometer(filepath):
+    """
+    Returns
+        wls (nm), transmission (%)
+    """
+    with open(filepath) as f:
+            lines = f.readlines()
+
+    for i, line in enumerate(lines[1:]):
+        if line == '\n':  # Data ends with a blank link (before Cary setup details)
+            skip_footer = len(lines) - i
+            break
+        else:
+            skip_footer = 0
+
+    data = np.genfromtxt(filepath, skip_footer=skip_footer, skip_header=2, delimiter=',')
+
+    # Assume data of interest is in last 2 columns (the -1 column is empty... due to strange Cary spectrometer saving format)
+    x = data[:, -3]
+    y = data[:, -2]
+
+    return x, y

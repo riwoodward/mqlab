@@ -4,14 +4,14 @@
 Instrumentation interfacing & control code for MQ Mid-IR Fibre Lasers Group.
 
 * All devices are based on underlying communication classes (in ``connections.py``), determined by their connection type (GPIB, Serial, Ethernet or USB). See docstring of ``connections.py`` for discussion of networking protocols and the python packages used for each.
-* Each lab device is assigned a unique ID (in ``mq_instruments.txt``) which defines commuication defaults (address, baud rate etc) for simplifying access to them.
+* Each lab device is assigned a unique ID (in ``mq_instruments.txt``) which defines communication defaults (address, baud rate etc) for simplifying access to them.
 * Each device type should be a class, with specific devices created as subclasses.
 * GUIs / more specialised interfacing code are separate python files, which create instances of device classes as required.
 * ``gui.py`` is a (continually growing) attempt to build a single interface for interfacing with all commonly used metrological equipment.
 
 Installation
 -------------
-MQ Lab has been tested with Windows, Mac and Ubuntu and should work using Python 2 or Python 3. It is recommended to use the latest Python version (v3.6), however.
+MQ Lab has been tested with Windows, Mac and Ubuntu and requires Python v3.6 or newer.
 
 To install MQLab, open a terminal / command prompt window (with current folder path as this folder) and run::
 

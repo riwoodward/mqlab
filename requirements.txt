@@ -1,9 +1,8 @@
-future
 numpy
 scipy
 matplotlib
 pyserial
 python-vxi11
 pyvisa
-ftd2xx
 zaber.serial
+# ftd2xx
