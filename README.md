@@ -1,5 +1,4 @@
-**MQ Lab - Instrument Control Code**
-######################################
+# MQ Lab - Instrument Control Code
 
 Instrumentation interfacing & control code for MQ Mid-IR Fibre Lasers Group.
 
@@ -9,8 +8,7 @@ Instrumentation interfacing & control code for MQ Mid-IR Fibre Lasers Group.
 * GUIs / more specialised interfacing code are separate python files, which create instances of device classes as required.
 * ``gui.py`` is a (continually growing) attempt to build a single interface for interfacing with all commonly used metrological equipment.
 
-Installation
--------------
+## Installation
 MQ Lab has been tested with Windows, Mac and Ubuntu and requires Python v3.6 or newer.
 
 To install MQLab, open a terminal / command prompt window (with current folder path as this folder) and run::
@@ -23,8 +21,7 @@ Alternatively, if you expect to modify MQ Lab code manually, you can install it 
 
     $ python setup.py develop
 
-Usage
------
+## Usage
 The instrument classes can be imported and used in custom code as required (see docstrings for examples).
 
 For quick access to core data grabbing, plotting and analysis tools in a GUI, run::
@@ -32,8 +29,7 @@ For quick access to core data grabbing, plotting and analysis tools in a GUI, ru
     $ python gui.py
 
 
-General Code Structure
-----------------------
+## General Code Structure
 * ``connections.py`` : master code to establish common interface for all connection protocols (GPIB, RS232, Ethernet, USB etc.)
 
 * device drivers are saved in files according to the device type
@@ -44,6 +40,4 @@ General Code Structure
 
 * ``mq_instruments.txt`` : configuration file containing default settings for MQ lab instruments
 
-
-.. image:: https://raw.githubusercontent.com/riwoodward/mqlab/master/mqlab/resources/gui_screenshot.jpg
-        :width: 50%
+![gui](https://raw.githubusercontent.com/riwoodward/mqlab/master/mqlab/resources/gui_screenshot.jpg)
