@@ -6,3 +6,4 @@ python-vxi11
 pyvisa
 zaber.serial
 # ftd2xx
+setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
